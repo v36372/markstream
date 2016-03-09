@@ -13,20 +13,18 @@ import (
     "math"
     "math/cmplx"
     "strconv"
-    // "log"
 )
 
 const (
 	// normScale = float64(math.MaxInt16)
   freqThes = 0.0001
   offset = 1
-  spf = 80
 )
 
 func main() {
     file , _ := os.Open("test.wav")
     reader , _ := wav.New(file)
-    // fmt.Println(reader.Samples)
+    fmt.Println(reader.Samples)
 
     // l,err := reader.ReadSamples(reader.Samples)
     l,err := reader.ReadFloatsScale(reader.Samples)
@@ -34,7 +32,7 @@ func main() {
       fmt.Println(err)
     }
 
-    // fmt.Println(max)
+    // fmt.Println(l)
 
     // file, _ := os.Open("a.wav")
     // reader := wav.NewReader(file)
@@ -87,52 +85,22 @@ func main() {
 
     //f, _ := os.Create("cosine_test.txt")
 
-    // fmt.Println(reader.Samples)
-    // for i :=0 ;i<10;i++ {
-    //   fmt.Print(l[i], " ")
-    // }
-    mag := make([]float64, 0)
-    phs := make([]float64, 0)
+    fmt.Println(reader.Samples)
+    for i :=0 ;i<10;i++ {
+      fmt.Print(l[i], " ")
+    }
+    mag := make([]float64, reader.Samples)
+    phs := make([]float64, reader.Samples)
     // mag := make([]float64, 10)
     // phs := make([]float64, 10)
 
     // fmt.Println(mag[0])
-    // fourier := fft.FFTReal32(l)
-    // fmt.Println(fourier[1])
+    fourier := fft.FFTReal32(l)
+    fmt.Println(fourier[0])
     // fmt.Println(fft.IFFT(fourier))
-    var max float64
-    max = 0
-    var i = spf-1
-    var j = 0
-    for i<len(l) {
-      max = 0
-      submag := make([]float64, spf)
-      subphs := make([]float64, spf)
-      // fmt.Println(j, " ", i+1)
-      var subl = l[j:i+1]
-      // fmt.Println(len(subl))
-      subfourier :=  fft.FFTReal32(subl)
-      // fmt.Println(subfourier)
-      for k,x :=range subfourier {
-        submag[k],subphs[k] = cmplx.Polar(x)
-        if submag[k] > max {
-          max = submag[k]
-        }
-      }
-      mag = append(mag, submag...)
-      phs = append(phs, subphs...)
-      j=i+1
-      i+=spf
-      // fmt.Println(i)
-      if len(l)-i>0&&len(l)-i<spf{
-        i=len(l)-1
-      }
+    for i,a:= range fourier{
+        mag[i], phs[i] = cmplx.Polar(a)
     }
-
-    // fmt.Println(max)
-    // for i=0;i<200;i++{
-    //   fmt.Println(mag[i], " ", phs[i])
-    // }
     // fmt.Println(phs[0],phs[1],phs[2],phs[3],phs[4],phs[5],phs[6],phs[7],phs[8])
 
     // fmt.Println(mag)
@@ -165,96 +133,62 @@ func main() {
           substr = "0" + substr
         }
       }
-      // fmt.Println(substr)
+      fmt.Println(substr)
       stringbit += substr
     }
-
     fmt.Println(stringbit)
-    var k=offset
+
+    var k =offset
     var count=0
-    i =0
-    for i<len(stringbit){
+    var pos=0
+    for pos<len(stringbit){
       if math.Abs(mag[k]) < freqThes {
         // fmt.Println("ooops ",mag[k])
         k++
         continue
       }
-      fmt.Print(phs[k], " ")
-      var stepsize = findStep(mag[k],max)
-      // if stringbit[i] == '0'{
-      //   phs[k] = math.Floor(phs[k]/step[stepsize] + 0.5)*step[stepsize]
-      // }
-      // if stringbit[i] == '1' {
-      //   phs[k] = math.Floor(phs[k]/step[stepsize])*step[stepsize] + step[stepsize]/2
-      // }
-
-      var bit float64
-      // bit =0;
-      if stringbit[i] == '0'{
-        bit=0
-      }else {
-        bit=1
+      var stepsize = findStep(mag[k])
+      if stringbit[pos] == '0'{
+        phs[k] = math.Floor(phs[k]/step[stepsize] + 0.5)*step[stepsize]
       }
-      phs[k]=step[stepsize]*Round(phs[k]/step[stepsize] - bit/2,0.5,0) + step[stepsize]*bit/2
-      fmt.Println(phs[k], " " , stepsize)
+      if stringbit[pos] == '1' {
+        phs[k] = math.Floor(phs[k]/step[stepsize])*step[stepsize] + step[stepsize]/2
+      }
       count++
       if count==10{
         count=0
-        i++
+        pos++
       }
       k++
     }
-    // fmt.Println(k)
-    // fmt.Println(phs[1]," ",phs[2]," ",phs[3]," ",phs[4])
+
+
+    // fmt.Println(phs[0],phs[1],phs[2],phs[3],phs[4],phs[5],phs[6],phs[7],phs[8])
     cmplxArray := make([]complex128, reader.Samples)
     // cmplxArray := make([]complex128, 10)
     for i,_ := range mag {
       cmplxArray[i] = cmplx.Rect(mag[i],phs[i])
     }
-    // fmt.Println(cmplxArray[1])
-    i = spf-1
-    j=0
-    var newWav = make([]float64, 0)
-    for i<len(l) {
-      // max = 0
-      // submag := make([]float64, spf)
-      // subphs := make([]float64, spf)
-      // fmt.Println(j, " ", i+1)
-      var subcmplx = cmplxArray[j:i+1]
-      // fmt.Println(len(subcmplx))
-      subIFFT :=  fft.IFFTRealOutput(subcmplx)
-      newWav = append(newWav, subIFFT...)
-
-      // fmt.Println(subfourier)
-      // mag = append(mag, submag...)
-      // phs = append(phs, subphs...)
-      j=i+1
-      i+=spf
-      // fmt.Println(i)
-      if len(l)-i>=0&&len(l)-i<spf{
-        // fmt.Println("aaaaaaaaaaaa")
-        i=len(l)-1
-      }
+    fmt.Println(cmplxArray[0])
+    var wm_frame = fft.IFFT(cmplxArray)
+    for i :=0 ;i<10;i++ {
+      fmt.Print(real(wm_frame[i]), " ")
     }
-    // var wm_frame = fft.IFFT(cmplxArray)
-    // for i :=0 ;i<10;i++ {
-    //   fmt.Print(newWav[i], " ")
-    // }
 
-    // var newWav = make([]float64, reader.Samples)
-    // for i,_ := range wm_frame {
-    //   newWav[i] = real(wm_frame[i])
-    // }
+    var newWav = make([]float64, reader.Samples)
+    for i,_ := range wm_frame {
+      newWav[i] = real(wm_frame[i])
+    }
 
     // outfile, _ := os.Create("a_wm.wav")
     // var wr := wav.NewWriter(outfile,reader.WavData.Size,)
     // outfile, _ := os.Create("a_wm.wav")
     // reader := wav.NewWriter(file)
     // format, _ := reader.Format()
-    // fmt.Println(reader.Header.NumChannels)
-    // fmt.Println(reader.Header.BitsPerSample)
-    // fmt.Println(reader.Header.SampleRate)
-    // fmt.Println(reader.Header.AudioFormat)
+    fmt.Println(reader.Header.NumChannels)
+    fmt.Println(reader.Header.BitsPerSample)
+    fmt.Println(reader.Header.SampleRate)
+    fmt.Println(reader.Header.AudioFormat)
 
     wavOut, err := os.Create("test_wm.wav")
   	checkErr(err)
@@ -271,27 +205,26 @@ func main() {
   	defer writer.Close()
 
   	// start := time.Now()
-    // fmt.Println("out put lenght : ", len(newWav))
+
   	// var freq float64
   	// freq = 0.0001
     // b := make([]byte, 2)
-    // fmt.Println(writer.SamplesWritten)
+    fmt.Println(writer.SamplesWritten)
   	for n := 0; n < reader.Samples; n += 1 {
-      integer := int16(newWav[n]*math.MaxInt16)
+      integer := int16(newWav[n]*32767)
       // toNumber := uint16(newWav[n]   * normScale) // Inverse the read scaling
   		// binary.LittleEndian.PutUint16(b, uint16(toNumber))
   		// writer.WriteSample(b)
-      // fmt.Print(integer, " ")
   		err = writer.WriteInt16(integer)
   		checkErr(err)
   	}
-    // fmt.Println(writer.SamplesWritten)
+    fmt.Println(writer.SamplesWritten)
   	// fmt.Printf("Simulation Done. Took:%v\n", time.Since(start))
 
 
 }
 
-func findStep(mag float64,max float64) int32{
+func findStep(mag float64) int32{
   // var k = int32(math.Ceil(math.Abs(max)/mag))
   // if k > 4{
   //   k = 4
@@ -308,20 +241,6 @@ func findStep(mag float64,max float64) int32{
     group=4
   }
   return int32(group)
-}
-
-func Round(val float64, roundOn float64, places int ) (newVal float64) {
-	var round float64
-	pow := math.Pow(10, float64(places))
-	digit := pow * val
-	_, div := math.Modf(digit)
-	if div >= roundOn {
-		round = math.Ceil(digit)
-	} else {
-		round = math.Floor(digit)
-	}
-	newVal = round / pow
-	return
 }
 
 func checkErr(err error) {

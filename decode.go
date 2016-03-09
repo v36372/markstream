@@ -15,13 +15,12 @@ import (
 const (
   freqThes = 0.0001
   offset = 1
-  spf = 80
 )
 
 func main(){
   file , _ := os.Open("test_wm.wav")
   reader , _ := wav.New(file)
-  l,err := reader.ReadFloatsScale(reader.Samples-8)
+  l,err := reader.ReadFloats(reader.Samples-8)
   if err!= nil {
     fmt.Println(err)
   }
@@ -47,92 +46,59 @@ func main(){
   //         // r[i] = reader.IntValue(sample,1)
   //     }
   // }
-  // for i :=0 ;i<10;i++ {
-  //   fmt.Print(l[i], " ")
-  // }
-  // fmt.Println(reader.Samples)
+
+  fmt.Println(reader.Samples)
   // for i:=0;i<reader.Samples-8;i++ {
-  //   fmt.Print(l[i], " ")
+  //   fmt.Print(l.([]int16)[i], " ")
   //   if i%10 == 0 {
   //     fmt.Println("")
   //   }
   // }
 
-  mag := make([]float64, 0)
-  phs := make([]float64, 0)
+  mag := make([]float64, reader.Samples)
+  phs := make([]float64, reader.Samples)
 
-  // fmt.Println(mag[0])
-  // fourier := fft.FFTReal32(l)
-  // var max float64
-  //
-  // for i,a:= range fourier{
-  //     mag[i], phs[i] = cmplx.Polar(a)
-  //     if mag[i] > max {
-  //       max = mag[i]
-  //     }
-  // }
+  fmt.Println(mag[0])
+  fourier := fft.FFTReal32(l)
 
-  var max float64
-  max = 0
-  var i = spf-1
-  var j = 0
-  for i<len(l) {
-    max = 0
-    submag := make([]float64, spf)
-    subphs := make([]float64, spf)
-    // fmt.Println(j, " ", i+1)
-    var subl = l[j:i+1]
-    // fmt.Println(len(subl))
-    subfourier :=  fft.FFTReal32(subl)
-    // fmt.Println(subfourier)
-    for k,x :=range subfourier {
-      submag[k],subphs[k] = cmplx.Polar(x)
-      if submag[k] > max {
-        max = submag[k]
-      }
-    }
-    mag = append(mag, submag...)
-    phs = append(phs, subphs...)
-    j=i+1
-    i+=spf
-    // fmt.Println(max)
-    if len(l)-i>=0&&len(l)-i<spf{
-      i=len(l)-1
-    }
+  for i,a:= range fourier{
+      mag[i], phs[i] = cmplx.Polar(a)
   }
-  fmt.Println(phs[1]," ",phs[2]," ",phs[3]," ",phs[4])
+
   var str = ""
   var pi = math.Pi
   step := [5]float64{pi/10,pi/8,pi/6,pi/4,pi/2}
-  fmt.Println(max)
   var k=offset
   var countzero=0
   var countone=1
   var res=0
-  for res<16*10 {
+  for res<16*8{
     if math.Abs(mag[k]) < freqThes{
       fmt.Println("oopps")
       k++
       continue
     }
-    var stepsize = findStep(mag[k],max)
-    fmt.Print(phs[k]," ",stepsize," ")
-    // integer := int64(math.Floor(phs[k]/(step[stepsize]/2)))
-    // r := phs[k]/(step[stepsize]/2) - math.Floor(phs[k]/(step[stepsize]/2))
-    var q1 = step[stepsize]*math.Floor(phs[k]/step[stepsize]+0.5)
-	  var q2 = step[stepsize]*math.Floor(phs[k]/step[stepsize]) + step[stepsize]/2
-    fmt.Println(q1," ",q2)
-    if q1<q2{
-      countzero++
-    }else{
-      countone++
+    var stepsize = findStep(mag[k])
+    integer := int64(math.Floor(phs[k]/(step[stepsize]/2)))
+    r := phs[k]/(step[stepsize]/2) - math.Floor(phs[k]/(step[stepsize]/2))
+    if r < 0.5 {
+      if integer % 2 == 0 {
+        countzero++
+        // str += "0"
+      } else {
+        // str += "1"
+        countone++
+      }
     }
-    // if r < 0.25||r>0.75 {
-    //   countzero++
-    // }
-    // if r >= 0.25 && r<=0.75 {
-    //   countone++
-    // }
+    if r >= 0.5 {
+      if integer % 2 == 0 {
+        countone++
+        // str += "1"
+      } else {
+        // str += "0"
+        countzero++
+      }
+    }
     if countzero+countone==10{
       if countzero>countone{
         str+= "0"
@@ -159,7 +125,7 @@ func main(){
   }
 }
 
-func findStep(mag float64,max float64) int32{
+func findStep(mag float64) int32{
   // var k = int32(math.Ceil(math.Abs(max)/mag))
   // if k > 4{
   //   k = 4
