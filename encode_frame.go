@@ -29,47 +29,47 @@ func main() {
     fmt.Println(reader.Header.ByteRate)
     fmt.Println(reader.Header.SampleRate)
     //---------------------fft the whole file-------------------------
-    mag := make([]float64, reader.Samples)
-    phs := make([]float64, reader.Samples)
-
-    fourier := fft.FFTReal(l)
-    for i,a:= range fourier{
-        mag[i], phs[i] = cmplx.Polar(a)
-    }
+    // mag := make([]float64, reader.Samples)
+    // phs := make([]float64, reader.Samples)
+    //
+    // fourier := fft.FFTReal(l)
+    // for i,a:= range fourier{
+    //     mag[i], phs[i] = cmplx.Polar(a)
+    // }
     //----------------------fft the whole file------------------------
 
     //==================================================================
 
     //-------------------divide into frames--------------------------
-    // mag := make([]float64, 0)
-    // phs := make([]float64, 0)
-    //
-    // var max float64
-    // max = 0
-    // var i = SAMPLE_PER_FRAME-1
-    // var j = 0
-    // for i<len(l) {
-    //   max = 0
-    //   submag := make([]float64, i+1-j)
-    //   subphs := make([]float64, i+1-j)
-    //   var subl = l[j:i+1]
-    //   // fmt.Println(len(submag))
-    //   subfourier :=  fft.FFTReal(subl)
-    //   for k,x :=range subfourier {
-    //     submag[k],subphs[k] = cmplx.Polar(x)
-    //     if submag[k] > max {
-    //       max = submag[k]
-    //     }
-    //   }
-    //   // fmt.Println(len(mag))
-    //   mag = append(mag, submag...)
-    //   phs = append(phs, subphs...)
-    //   j=i+1
-    //   i+=SAMPLE_PER_FRAME
-    //   if len(l)-i>0&&len(l)-i<SAMPLE_PER_FRAME{
-    //     i=len(l)-1
-    //   }
-    // }
+    mag := make([]float64, 0)
+    phs := make([]float64, 0)
+
+    var max float64
+    max = 0
+    var i = SAMPLE_PER_FRAME-1
+    var j = 0
+    for i<len(l) {
+      max = 0
+      submag := make([]float64, i+1-j)
+      subphs := make([]float64, i+1-j)
+      var subl = l[j:i+1]
+      // fmt.Println(len(submag))
+      subfourier :=  fft.FFTReal(subl)
+      for k,x :=range subfourier {
+        submag[k],subphs[k] = cmplx.Polar(x)
+        if submag[k] > max {
+          max = submag[k]
+        }
+      }
+      // fmt.Println(len(mag))
+      mag = append(mag, submag...)
+      phs = append(phs, subphs...)
+      j=i+1
+      i+=SAMPLE_PER_FRAME
+      if len(l)-i>0&&len(l)-i<SAMPLE_PER_FRAME{
+        i=len(l)-1
+      }
+    }
     //-------------------divide into frames--------------------------
 
     var pi = math.Pi
@@ -121,37 +121,37 @@ func main() {
     }
 
     //----------------------ifft the whole file-------------------
-    var wm_frame = fft.IFFT(cmplxArray)
-    for i :=0 ;i<10;i++ {
-      fmt.Print(real(wm_frame[i]), " ")
-    }
-
-    var newWav = make([]float64, reader.Samples)
-    for i,_ := range wm_frame {
-      newWav[i] = real(wm_frame[i])
-    }
+    // var wm_frame = fft.IFFT(cmplxArray)
+    // for i :=0 ;i<10;i++ {
+    //   fmt.Print(real(wm_frame[i]), " ")
+    // }
+    //
+    // var newWav = make([]float64, reader.Samples)
+    // for i,_ := range wm_frame {
+    //   newWav[i] = real(wm_frame[i])
+    // }
     //----------------------ifft the whole file-------------------
 
     //==================================================================
 
     //----------------------divide into frames----------------------
-    // i = SAMPLE_PER_FRAME-1
-    // j=0
-    // var newWav = make([]float64, 0)
-    // for i<len(l) {
-    //   var subcmplx = cmplxArray[j:i+1]
-    //   subIFFT :=  fft.IFFTRealOutput(subcmplx)
-    //   // fmt.Println(len(newWav))
-    //   newWav = append(newWav, subIFFT...)
-    //   j=i+1
-    //   i+=SAMPLE_PER_FRAME
-    //   if len(l)-i>=0&&len(l)-i<SAMPLE_PER_FRAME{
-    //     i=len(l)-1
-    //   }
-    // }
+    i = SAMPLE_PER_FRAME-1
+    j=0
+    var newWav = make([]float64, 0)
+    for i<len(l) {
+      var subcmplx = cmplxArray[j:i+1]
+      subIFFT :=  fft.IFFTRealOutput(subcmplx)
+      // fmt.Println(len(newWav))
+      newWav = append(newWav, subIFFT...)
+      j=i+1
+      i+=SAMPLE_PER_FRAME
+      if len(l)-i>=0&&len(l)-i<SAMPLE_PER_FRAME{
+        i=len(l)-1
+      }
+    }
     //----------------------divide into frames----------------------
 
-    wavOut, err := os.Create("test_wm.wav")
+    wavOut, err := os.Create("test_wm_frame.wav")
   	checkErr(err)
   	defer wavOut.Close()
 

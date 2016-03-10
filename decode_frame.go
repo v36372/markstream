@@ -25,49 +25,49 @@ func main(){
 
   fmt.Println(l[1]," ",l[2]," ",l[3]," ",l[4]," ",l[5]," ",l[6]," ",l[7]," ",l[8])
   //----------------------fft the whole file-------------------
-  mag := make([]float64, reader.Samples)
-  phs := make([]float64, reader.Samples)
-
-  fmt.Println(mag[0])
-  fourier := fft.FFTReal(l)
-
-  for i,a:= range fourier{
-      mag[i], phs[i] = cmplx.Polar(a)
-  }
+  // mag := make([]float64, reader.Samples)
+  // phs := make([]float64, reader.Samples)
+  //
+  // fmt.Println(mag[0])
+  // fourier := fft.FFTReal(l)
+  //
+  // for i,a:= range fourier{
+  //     mag[i], phs[i] = cmplx.Polar(a)
+  // }
   //----------------------fft the whole file-------------------
 
   //---------------------divide into frames---------------------
-  // mag := make([]float64, 0)
-  // phs := make([]float64, 0)
-  //
-  // var max float64
-  // max = 0
-  // var i = SAMPLE_PER_FRAME-1
-  // var j = 0
-  // for i<len(l) {
-  //   max = 0
-  //   submag := make([]float64, i+1-j)
-  //   subphs := make([]float64, i+1-j)
-  //   // fmt.Println(j, " ", i+1)
-  //   var subl = l[j:i+1]
-  //   // fmt.Println(len(subl))
-  //   subfourier :=  fft.FFTReal(subl)
-  //   // fmt.Println(subfourier)
-  //   for k,x :=range subfourier {
-  //     submag[k],subphs[k] = cmplx.Polar(x)
-  //     if submag[k] > max {
-  //       max = submag[k]
-  //     }
-  //   }
-  //   mag = append(mag, submag...)
-  //   phs = append(phs, subphs...)
-  //   j=i+1
-  //   i+=SAMPLE_PER_FRAME
-  //   // fmt.Println(max)
-  //   if len(l)-i>=0&&len(l)-i<SAMPLE_PER_FRAME{
-  //     i=len(l)-1
-  //   }
-  // }
+  mag := make([]float64, 0)
+  phs := make([]float64, 0)
+
+  var max float64
+  max = 0
+  var i = SAMPLE_PER_FRAME-1
+  var j = 0
+  for i<len(l) {
+    max = 0
+    submag := make([]float64, i+1-j)
+    subphs := make([]float64, i+1-j)
+    // fmt.Println(j, " ", i+1)
+    var subl = l[j:i+1]
+    // fmt.Println(len(subl))
+    subfourier :=  fft.FFTReal(subl)
+    // fmt.Println(subfourier)
+    for k,x :=range subfourier {
+      submag[k],subphs[k] = cmplx.Polar(x)
+      if submag[k] > max {
+        max = submag[k]
+      }
+    }
+    mag = append(mag, submag...)
+    phs = append(phs, subphs...)
+    j=i+1
+    i+=SAMPLE_PER_FRAME
+    // fmt.Println(max)
+    if len(l)-i>=0&&len(l)-i<SAMPLE_PER_FRAME{
+      i=len(l)-1
+    }
+  }
   //---------------------divide into frames---------------------
 
   var str = ""
