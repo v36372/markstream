@@ -14,7 +14,8 @@ import (
 const (
   MAG_THRES = 0.0001
   BIT_OFFSET = 1
-  SAMPLE_PER_FRAME=3000
+  SAMPLE_PER_FRAME=8000
+  BIN_PER_FRAME = 800
   BIT_REPEAT=5
   PI=math.Pi
 )
@@ -49,6 +50,9 @@ func main() {
     // max = 0
     var i = SAMPLE_PER_FRAME-1
     var j = 0
+    var stringbit = PrepareString("Nguyen Trong Tin - Graduation Thesis - HCMUS - APCS2012 - abcxyz - 123456789 - !@#$%^&*())(((((())")
+    fmt.Println(stringbit)
+    var pos =0
     for i<len(l) {
     //   max = 0
       submag := make([]float64, i+1-j)
@@ -57,6 +61,8 @@ func main() {
       // fmt.Println(len(submag))
       subfourier :=  fft.FFTReal32(subl)
       // fmt.Println(len(subfourier))
+      var count = 0
+      var bitrepeat =0
       for k,x :=range subfourier {
         submag[k],subphs[k] = cmplx.Polar(x)
         // if submag[k] > max {
@@ -65,8 +71,20 @@ func main() {
         // if submag[k] < MAG_THRES{
         //     continue
         // }
-
-
+        if k == 0 {
+            continue
+        }
+        if pos<len(stringbit) && count < BIN_PER_FRAME {
+            // fmt.Println(k, " ",pos)
+            subphs[k] = QIMEncode(submag[k],subphs[k],int(stringbit[pos]))
+            count++
+            // fmt.Println(pos, " ", count)
+            bitrepeat++
+        }
+        if bitrepeat == BIT_REPEAT{
+            bitrepeat=0
+            pos++
+        }
       }
       // fmt.Println(len(mag))
       mag = append(mag, submag...)
@@ -81,47 +99,47 @@ func main() {
 
     // step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
 
-    var info = "Nguyen Trong Tin"
-    var stringbit = ""
-    byteArray := []byte(info)
-    for _, char := range byteArray{
-      n := int64(char)
-      substr := strconv.FormatInt(n, 2)// 111001
-      if len(substr) < 8{
-        length := len(substr)
-        for j:=1;j<=8-length;j++{
-          substr = "0" + substr
-        }
-      }
-      stringbit += substr
-    }
-    fmt.Println(stringbit)
+    // var info = "Nguyen Trong Tin"
+    // var stringbit = ""
+    // byteArray := []byte(info)
+    // for _, char := range byteArray{
+    //   n := int64(char)
+    //   substr := strconv.FormatInt(n, 2)// 111001
+    //   if len(substr) < 8{
+    //     length := len(substr)
+    //     for j:=1;j<=8-length;j++{
+    //       substr = "0" + substr
+    //     }
+    //   }
+    //   stringbit += substr
+    // }
+    // fmt.Println(stringbit)
 
-    var k =BIT_OFFSET
-    var count=0
-    var pos=0
-    for pos<len(stringbit){
-      if math.Abs(mag[k]) < MAG_THRES {
-        k++
-        continue
-      }
-    //   var stepsize = findStep(mag[k])
-    //   if stringbit[pos] == '0'{
-    //     phs[k] = math.Floor(phs[k]/step[stepsize] + 0.5)*step[stepsize]
+    // var k =BIT_OFFSET
+    // var count=0
+    // var pos=0
+    // for pos<len(stringbit){
+    //   if math.Abs(mag[k]) < MAG_THRES {
+    //     k++
+    //     continue
     //   }
-    //   if stringbit[pos] == '1'{
-    //     phs[k] = math.Floor(phs[k]/step[stepsize])*step[stepsize] + step[stepsize]/2
+    // //   var stepsize = findStep(mag[k])
+    // //   if stringbit[pos] == '0'{
+    // //     phs[k] = math.Floor(phs[k]/step[stepsize] + 0.5)*step[stepsize]
+    // //   }
+    // //   if stringbit[pos] == '1'{
+    // //     phs[k] = math.Floor(phs[k]/step[stepsize])*step[stepsize] + step[stepsize]/2
+    // //   }
+    //   // fmt.Println(phs[k])
+    //   phs[k] = QIMEncode(mag[k],phs[k],int(stringbit[pos]))
+    //   count++
+    //   if count==BIT_REPEAT{
+    //     count=0
+    //     pos++
     //   }
-      // fmt.Println(phs[k])
-      phs[k] = QIMEncode(mag[k],phs[k],int(stringbit[pos]))
-      count++
-      if count==BIT_REPEAT{
-        count=0
-        pos++
-      }
-      k++
-    }
-    fmt.Println(phs[BIT_OFFSET], " ",phs[BIT_OFFSET+1]," ", phs[BIT_OFFSET+2]," ",phs[BIT_OFFSET+3])
+    //   k++
+    // }
+    // fmt.Println(phs[BIT_OFFSET], " ",phs[BIT_OFFSET+1]," ", phs[BIT_OFFSET+2]," ",phs[BIT_OFFSET+3])
     cmplxArray := make([]complex128, reader.Samples)
     for i,_ := range mag {
       cmplxArray[i] = cmplx.Rect(mag[i],phs[i])
@@ -158,7 +176,7 @@ func main() {
     }
     //----------------------divide into frames----------------------
 
-    fmt.Println(newWav[1], " ",newWav[2], " ",newWav[3], " ",newWav[4], " ",newWav[5], " ",newWav[6])
+    // fmt.Println(newWav[1], " ",newWav[2], " ",newWav[3], " ",newWav[4], " ",newWav[5], " ",newWav[6])
     wavOut, err := os.Create("test_wm_frame.wav")
   	checkErr(err)
   	defer wavOut.Close()
@@ -181,6 +199,24 @@ func main() {
   		checkErr(err)
   	}
     // fmt.Println(writer.SamplesWritten)
+}
+
+func PrepareString(info string) string{
+    var stringbit = ""
+    byteArray := []byte(info)
+    for _, char := range byteArray{
+      n := int64(char)
+      substr := strconv.FormatInt(n, 2)// 111001
+      if len(substr) < 8{
+        length := len(substr)
+        for j:=1;j<=8-length;j++{
+          substr = "0" + substr
+        }
+      }
+      stringbit += substr
+    }
+    // fmt.Println(stringbit)
+    return stringbit
 }
 
 func QIMEncode(mag float64, phs float64, bit int) float64{

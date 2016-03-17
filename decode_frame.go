@@ -9,11 +9,12 @@ import (
 )
 
 const (
-  FREQ_THRES = 0.0001
-  BIT_OFFSET = 1
-  SAMPLE_PER_FRAME=3000
-  BIT_REPEAT=5
-  PI=math.Pi
+    MAG_THRES = 0.0001
+    BIT_OFFSET = 1
+    SAMPLE_PER_FRAME=8000
+    BIN_PER_FRAME = 800
+    BIT_REPEAT=5
+    PI=math.Pi
 )
 
 func main(){
@@ -41,27 +42,62 @@ func main(){
   mag := make([]float64, 0)
   phs := make([]float64, 0)
 
-  var max float64
-  max = 0
+  // var max float64
+  // max = 0
   var i = SAMPLE_PER_FRAME-1
   var j = 0
+  var pos =0
+  var str = ""
   for i<len(l) {
-    max = 0
+  //   max = 0
     submag := make([]float64, i+1-j)
     subphs := make([]float64, i+1-j)
     var subl = l[j:i+1]
+    // fmt.Println(len(submag))
     subfourier :=  fft.FFTReal32(subl)
+    // fmt.Println(len(subfourier))
+    var countone=0
+    var countzero=0
+    var count=0
     for k,x :=range subfourier {
       submag[k],subphs[k] = cmplx.Polar(x)
-      if submag[k] > max {
-        max = submag[k]
+      // if submag[k] > max {
+      //   max = submag[k]
+      // }
+      // if submag[k] < MAG_THRES{
+      //     continue
+      // }
+      if k == 0 {
+          continue
+      }
+      if pos<98*8 && count < BIN_PER_FRAME {
+          // fmt.Println(k, " ",pos)
+          var bit = QIMDecode(submag[k],subphs[k])
+          count++
+          if bit==1{
+              countone++
+          }else{
+              countzero++
+          }
+      }
+      if countzero+countone==BIT_REPEAT{
+        fmt.Println(countzero, " ", countone, " ", pos, " ", count)
+        if countzero>countone{
+          str+= "0"
+        }else{
+          str+="1"
+        }
+        countzero=0
+        countone=0
+        pos++
       }
     }
+    // fmt.Println(len(mag))
     mag = append(mag, submag...)
     phs = append(phs, subphs...)
     j=i+1
     i+=SAMPLE_PER_FRAME
-    if len(l)-i>=0&&len(l)-i<SAMPLE_PER_FRAME{
+    if len(l)-i>0&&len(l)-i<SAMPLE_PER_FRAME{
       i=len(l)-1
     }
   }
@@ -69,48 +105,48 @@ func main(){
   fmt.Println(phs[BIT_OFFSET], " ",phs[BIT_OFFSET+1]," ", phs[BIT_OFFSET+2]," ",phs[BIT_OFFSET+3])
   //---------------------divide into frames---------------------
 
-  var str = ""
-  step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
-  var k=BIT_OFFSET
-  var countzero=0
-  var countone=1
-  var res=0
-  for res<16*8{
-    if math.Abs(mag[k]) < FREQ_THRES{
-      k++
-      continue
-    }
-    var stepsize = findStep(mag[k])
-    integer := int64(math.Floor(phs[k]/(step[stepsize]/2)))
-    r := phs[k]/(step[stepsize]/2) - math.Floor(phs[k]/(step[stepsize]/2))
-    // fmt.Println(phs[k]," ",r)
-    if r < 0.5 {
-      if integer % 2 == 0 {
-        countzero++
-      } else {
-        countone++
-      }
-    }
-    if r >= 0.5 {
-      if integer % 2 == 0 {
-        countone++
-      } else {
-        countzero++
-      }
-    }
-    if countzero+countone==BIT_REPEAT{
-      fmt.Println(countzero, " ", countone, " ", res)
-      if countzero>countone{
-        str+= "0"
-      }else{
-        str+="1"
-      }
-      countzero=0
-      countone=0
-      res++
-    }
-    k++
-  }
+  // var str = ""
+  // step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
+  // var k=BIT_OFFSET
+  // var countzero=0
+  // var countone=1
+  // var res=0
+  // for res<16*8{
+  //   if math.Abs(mag[k]) < FREQ_THRES{
+  //     k++
+  //     continue
+  //   }
+  //   var stepsize = findStep(mag[k])
+  //   integer := int64(math.Floor(phs[k]/(step[stepsize]/2)))
+  //   r := phs[k]/(step[stepsize]/2) - math.Floor(phs[k]/(step[stepsize]/2))
+  //   // fmt.Println(phs[k]," ",r)
+  //   if r < 0.5 {
+  //     if integer % 2 == 0 {
+  //       countzero++
+  //     } else {
+  //       countone++
+  //     }
+  //   }
+  //   if r >= 0.5 {
+  //     if integer % 2 == 0 {
+  //       countone++
+  //     } else {
+  //       countzero++
+  //     }
+  //   }
+  //   if countzero+countone==BIT_REPEAT{
+  //     fmt.Println(countzero, " ", countone, " ", res)
+  //     if countzero>countone{
+  //       str+= "0"
+  //     }else{
+  //       str+="1"
+  //     }
+  //     countzero=0
+  //     countone=0
+  //     res++
+  //   }
+  //   k++
+  // }
   fmt.Println(str)
   fmt.Println(len(str))
   var sum byte
@@ -124,6 +160,29 @@ func main(){
       last=i+1
     }
   }
+}
+
+func QIMDecode(mag float64, phs float64) int{
+    step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
+    var stepsize = findStep(mag)
+    integer := int64(math.Floor(phs/(step[stepsize]/2)))
+    r := phs/(step[stepsize]/2) - math.Floor(phs/(step[stepsize]/2))
+    // fmt.Println(phs[k]," ",r)
+    if r < 0.5 {
+      if integer % 2 == 0 {
+        return 0
+      } else {
+        return 1
+      }
+    }
+    if r >= 0.5 {
+      if integer % 2 == 0 {
+        return 1
+      } else {
+        return 0
+      }
+    }
+    return 0
 }
 
 func findStep(mag float64) int32{
