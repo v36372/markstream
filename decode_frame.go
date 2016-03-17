@@ -11,14 +11,14 @@ import (
 const (
     MAG_THRES = 0.0001
     BIT_OFFSET = 1
-    SAMPLE_PER_FRAME=8000
+    SAMPLE_PER_FRAME=22050
     BIN_PER_FRAME = 800
     BIT_REPEAT=5
     PI=math.Pi
 )
 
 func main(){
-  file , _ := os.Open("test_wm_frame.wav")
+  file , _ := os.Open("RWC_001_wm.wav")
   reader , _ := wav.New(file)
   l,err := reader.ReadFloatsScale(reader.Samples-8)
   if err!= nil {
@@ -48,6 +48,8 @@ func main(){
   var j = 0
   var pos =0
   var str = ""
+  var flag = 0;
+  var watermark = 220*8
   for i<len(l) {
   //   max = 0
     submag := make([]float64, i+1-j)
@@ -70,7 +72,7 @@ func main(){
       if k == 0 {
           continue
       }
-      if pos<98*8 && count < BIN_PER_FRAME {
+      if pos<watermark && count < BIN_PER_FRAME {
           // fmt.Println(k, " ",pos)
           var bit = QIMDecode(submag[k],subphs[k])
           count++
@@ -79,6 +81,10 @@ func main(){
           }else{
               countzero++
           }
+      }
+      if pos>=watermark{
+          flag = 1
+          break
       }
       if countzero+countone==BIT_REPEAT{
         fmt.Println(countzero, " ", countone, " ", pos, " ", count)
@@ -92,6 +98,9 @@ func main(){
         pos++
       }
     }
+    if flag == 1{
+        break
+    }
     // fmt.Println(len(mag))
     mag = append(mag, submag...)
     phs = append(phs, subphs...)
@@ -102,7 +111,7 @@ func main(){
     }
   }
 
-  fmt.Println(phs[BIT_OFFSET], " ",phs[BIT_OFFSET+1]," ", phs[BIT_OFFSET+2]," ",phs[BIT_OFFSET+3])
+  // fmt.Println(phs[BIT_OFFSET], " ",phs[BIT_OFFSET+1]," ", phs[BIT_OFFSET+2]," ",phs[BIT_OFFSET+3])
   //---------------------divide into frames---------------------
 
   // var str = ""
@@ -163,7 +172,7 @@ func main(){
 }
 
 func QIMDecode(mag float64, phs float64) int{
-    step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
+    step := [5]float64{PI/32,PI/28,PI/24,PI/20,PI/16}
     var stepsize = findStep(mag)
     integer := int64(math.Floor(phs/(step[stepsize]/2)))
     r := phs/(step[stepsize]/2) - math.Floor(phs/(step[stepsize]/2))

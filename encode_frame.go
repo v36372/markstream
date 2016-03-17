@@ -14,14 +14,14 @@ import (
 const (
   MAG_THRES = 0.0001
   BIT_OFFSET = 1
-  SAMPLE_PER_FRAME=8000
+  SAMPLE_PER_FRAME=22050
   BIN_PER_FRAME = 800
   BIT_REPEAT=5
   PI=math.Pi
 )
 
 func main() {
-    file , _ := os.Open("test.wav")
+    file , _ := os.Open("RWC_001.wav")
     reader , _ := wav.New(file)
 
     l,err := reader.ReadFloatsScale(reader.Samples)
@@ -50,7 +50,7 @@ func main() {
     // max = 0
     var i = SAMPLE_PER_FRAME-1
     var j = 0
-    var stringbit = PrepareString("Nguyen Trong Tin - Graduation Thesis - HCMUS - APCS2012 - abcxyz - 123456789 - !@#$%^&*())(((((())")
+    var stringbit = PrepareString("Nguyen Trong Tin - Graduation Thesis - HCMUSNguyen Trong Tin - Graduation Thesis - HCMUSNguyen Trong Tin - Graduation Thesis - HCMUSNguyen Trong Tin - Graduation Thesis - HCMUSNguyen Trong Tin - Graduation Thesis - HCMUS")
     fmt.Println(stringbit)
     var pos =0
     for i<len(l) {
@@ -177,7 +177,7 @@ func main() {
     //----------------------divide into frames----------------------
 
     // fmt.Println(newWav[1], " ",newWav[2], " ",newWav[3], " ",newWav[4], " ",newWav[5], " ",newWav[6])
-    wavOut, err := os.Create("test_wm_frame.wav")
+    wavOut, err := os.Create("RWC_001_wm.wav")
   	checkErr(err)
   	defer wavOut.Close()
 
@@ -220,7 +220,7 @@ func PrepareString(info string) string{
 }
 
 func QIMEncode(mag float64, phs float64, bit int) float64{
-    step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
+    step := [5]float64{PI/32,PI/28,PI/24,PI/20,PI/16}
     var stepsize = findStep(mag)
     // fmt.Print(bit)
     if bit == 48{

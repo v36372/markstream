@@ -1,3 +1,5 @@
 *.wav
 *.rar
 *.wav~
+Book/*
+RWC_60s/*
