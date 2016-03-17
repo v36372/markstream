@@ -13,7 +13,7 @@ import (
 
 const (
   FREQ_THRES = 0.0001
-  BIT_OFFSET = 10000
+  BIT_OFFSET = 1
   SAMPLE_PER_FRAME=3000
   BIT_REPEAT=5
 )
@@ -75,7 +75,7 @@ func main() {
     var pi = math.Pi
     step := [5]float64{pi/48,pi/40,pi/32,pi/24,pi/16}
 
-    var info = "NT"
+    var info = "Nguyen Trong Tin - Graduation Thesis - University of Science"
     var stringbit = ""
     byteArray := []byte(info)
     for _, char := range byteArray{

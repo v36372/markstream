@@ -78,7 +78,7 @@ func main(){
   var countone=1
   var res=0
   // var samplestr = "01001110011001110111010101111001011001010110111000100000010101000111001001101111011011100110011100100000010101000110100101101110"
-  for res<55*8{
+  for res<60*8{
     if math.Abs(mag[k]) < FREQ_THRES{
       k++
       continue

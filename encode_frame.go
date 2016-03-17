@@ -12,17 +12,18 @@ import (
 )
 
 const (
-  FREQ_THRES = 0.0001
-  BIT_OFFSET = 10000
+  MAG_THRES = 0.0001
+  BIT_OFFSET = 1
   SAMPLE_PER_FRAME=3000
   BIT_REPEAT=5
+  PI=math.Pi
 )
 
 func main() {
     file , _ := os.Open("test.wav")
     reader , _ := wav.New(file)
 
-    l,err := reader.ReadFloats(reader.Samples)
+    l,err := reader.ReadFloatsScale(reader.Samples)
     if err!= nil {
       fmt.Println(err)
     }
@@ -44,22 +45,28 @@ func main() {
     mag := make([]float64, 0)
     phs := make([]float64, 0)
 
-    var max float64
-    max = 0
+    // var max float64
+    // max = 0
     var i = SAMPLE_PER_FRAME-1
     var j = 0
     for i<len(l) {
-      max = 0
+    //   max = 0
       submag := make([]float64, i+1-j)
       subphs := make([]float64, i+1-j)
       var subl = l[j:i+1]
       // fmt.Println(len(submag))
-      subfourier :=  fft.FFTReal(subl)
+      subfourier :=  fft.FFTReal32(subl)
+      // fmt.Println(len(subfourier))
       for k,x :=range subfourier {
         submag[k],subphs[k] = cmplx.Polar(x)
-        if submag[k] > max {
-          max = submag[k]
-        }
+        // if submag[k] > max {
+        //   max = submag[k]
+        // }
+        // if submag[k] < MAG_THRES{
+        //     continue
+        // }
+
+
       }
       // fmt.Println(len(mag))
       mag = append(mag, submag...)
@@ -72,10 +79,9 @@ func main() {
     }
     //-------------------divide into frames--------------------------
 
-    var pi = math.Pi
-    step := [5]float64{pi/48,pi/40,pi/32,pi/24,pi/16}
+    // step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
 
-    var info = "NT"
+    var info = "Nguyen Trong Tin"
     var stringbit = ""
     byteArray := []byte(info)
     for _, char := range byteArray{
@@ -95,18 +101,19 @@ func main() {
     var count=0
     var pos=0
     for pos<len(stringbit){
-      if math.Abs(mag[k]) < FREQ_THRES {
+      if math.Abs(mag[k]) < MAG_THRES {
         k++
         continue
       }
-      var stepsize = findStep(mag[k])
-      if stringbit[pos] == '0'{
-        phs[k] = math.Floor(phs[k]/step[stepsize] + 0.5)*step[stepsize]
-      }
-      if stringbit[pos] == '1' {
-        phs[k] = math.Floor(phs[k]/step[stepsize])*step[stepsize] + step[stepsize]/2
-      }
+    //   var stepsize = findStep(mag[k])
+    //   if stringbit[pos] == '0'{
+    //     phs[k] = math.Floor(phs[k]/step[stepsize] + 0.5)*step[stepsize]
+    //   }
+    //   if stringbit[pos] == '1'{
+    //     phs[k] = math.Floor(phs[k]/step[stepsize])*step[stepsize] + step[stepsize]/2
+    //   }
       // fmt.Println(phs[k])
+      phs[k] = QIMEncode(mag[k],phs[k],int(stringbit[pos]))
       count++
       if count==BIT_REPEAT{
         count=0
@@ -114,7 +121,7 @@ func main() {
       }
       k++
     }
-    fmt.Println(phs[103], " ",phs[104]," ", phs[105]," ",phs[107])
+    fmt.Println(phs[BIT_OFFSET], " ",phs[BIT_OFFSET+1]," ", phs[BIT_OFFSET+2]," ",phs[BIT_OFFSET+3])
     cmplxArray := make([]complex128, reader.Samples)
     for i,_ := range mag {
       cmplxArray[i] = cmplx.Rect(mag[i],phs[i])
@@ -151,6 +158,7 @@ func main() {
     }
     //----------------------divide into frames----------------------
 
+    fmt.Println(newWav[1], " ",newWav[2], " ",newWav[3], " ",newWav[4], " ",newWav[5], " ",newWav[6])
     wavOut, err := os.Create("test_wm_frame.wav")
   	checkErr(err)
   	defer wavOut.Close()
@@ -166,11 +174,24 @@ func main() {
   	defer writer.Close()
 
   	for n := 0; n < reader.Samples; n += 1 {
-      // integer := int16(newWav[n]*math.MaxInt16)
-      integer := int16(newWav[n]*(math.MaxInt16 - math.MinInt16) + math.MinInt16)
+      integer := int16(newWav[n]*math.MaxInt16)
+      // integer := int16(newWav[n]*(math.MaxInt16 - math.MinInt16) + math.MinInt16)
+      // fmt.Println(integer)
   		err = writer.WriteInt16(integer)
   		checkErr(err)
   	}
+    // fmt.Println(writer.SamplesWritten)
+}
+
+func QIMEncode(mag float64, phs float64, bit int) float64{
+    step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
+    var stepsize = findStep(mag)
+    // fmt.Print(bit)
+    if bit == 48{
+      return math.Floor(phs/step[stepsize] + 0.5)*step[stepsize]
+    }else {
+      return math.Floor(phs/step[stepsize])*step[stepsize] + step[stepsize]/2
+    }
 }
 
 func findStep(mag float64) int32{

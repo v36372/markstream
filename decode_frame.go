@@ -10,20 +10,21 @@ import (
 
 const (
   FREQ_THRES = 0.0001
-  BIT_OFFSET = 10000
+  BIT_OFFSET = 1
   SAMPLE_PER_FRAME=3000
   BIT_REPEAT=5
+  PI=math.Pi
 )
 
 func main(){
-  file , _ := os.Open("test_wm.wav")
+  file , _ := os.Open("test_wm_frame.wav")
   reader , _ := wav.New(file)
-  l,err := reader.ReadFloats(reader.Samples-8)
+  l,err := reader.ReadFloatsScale(reader.Samples-8)
   if err!= nil {
     fmt.Println(err)
   }
 
-  fmt.Println(l[1]," ",l[2]," ",l[3]," ",l[4]," ",l[5]," ",l[6]," ",l[7]," ",l[8])
+  fmt.Println(l[1]," ",l[2]," ",l[3]," ",l[4]," ",l[5]," ",l[6])
   //----------------------fft the whole file-------------------
   // mag := make([]float64, reader.Samples)
   // phs := make([]float64, reader.Samples)
@@ -48,11 +49,8 @@ func main(){
     max = 0
     submag := make([]float64, i+1-j)
     subphs := make([]float64, i+1-j)
-    // fmt.Println(j, " ", i+1)
     var subl = l[j:i+1]
-    // fmt.Println(len(subl))
-    subfourier :=  fft.FFTReal(subl)
-    // fmt.Println(subfourier)
+    subfourier :=  fft.FFTReal32(subl)
     for k,x :=range subfourier {
       submag[k],subphs[k] = cmplx.Polar(x)
       if submag[k] > max {
@@ -63,22 +61,21 @@ func main(){
     phs = append(phs, subphs...)
     j=i+1
     i+=SAMPLE_PER_FRAME
-    // fmt.Println(max)
     if len(l)-i>=0&&len(l)-i<SAMPLE_PER_FRAME{
       i=len(l)-1
     }
   }
+
+  fmt.Println(phs[BIT_OFFSET], " ",phs[BIT_OFFSET+1]," ", phs[BIT_OFFSET+2]," ",phs[BIT_OFFSET+3])
   //---------------------divide into frames---------------------
 
   var str = ""
-  var pi = math.Pi
-  step := [5]float64{pi/48,pi/40,pi/32,pi/24,pi/16}
+  step := [5]float64{PI/20,PI/16,PI/12,PI/8,PI/4}
   var k=BIT_OFFSET
   var countzero=0
   var countone=1
   var res=0
-  // var samplestr = "01001110011001110111010101111001011001010110111000100000010101000111001001101111011011100110011100100000010101000110100101101110"
-  for res<55*8{
+  for res<16*8{
     if math.Abs(mag[k]) < FREQ_THRES{
       k++
       continue
@@ -89,27 +86,15 @@ func main(){
     // fmt.Println(phs[k]," ",r)
     if r < 0.5 {
       if integer % 2 == 0 {
-        // if samplestr[res] != '0'{
-        //   fmt.Println(phs[k], " ", res, " ", k, " ",samplestr[res])
-        // }
         countzero++
       } else {
-        // if samplestr[res] != '1'{
-        //   fmt.Println(phs[k], " ", res, " ", k, " ",samplestr[res]," 1 ne")
-        // }
         countone++
       }
     }
     if r >= 0.5 {
       if integer % 2 == 0 {
-        // if samplestr[res] != '1'{
-        //   fmt.Println(phs[k], " ", res, " ", k, " ",samplestr[res], " 1 ne")
-        // }
         countone++
       } else {
-        // if samplestr[res] != '0'{
-        //   fmt.Println(phs[k], " ", res, " ", k, " ",samplestr[res])
-        // }
         countzero++
       }
     }
@@ -127,6 +112,7 @@ func main(){
     k++
   }
   fmt.Println(str)
+  fmt.Println(len(str))
   var sum byte
   var last = 0
   for i,_ := range str {
