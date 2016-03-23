@@ -3,3 +3,5 @@
 *.wav~
 Book/*
 RWC_60s/*
+*.exe
+.
