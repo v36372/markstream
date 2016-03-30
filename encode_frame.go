@@ -1,6 +1,7 @@
 package main
 
 import (
+	// "fmt"
 	wavwriter "github.com/cryptix/wav"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
@@ -23,22 +24,26 @@ const (
 )
 
 func main() {
+	var filename = string(os.Args[1]) + ".wav"
+	var outputfile = string(os.Args[1]) + "_wm.wav"
+	var watermark = string(os.Args[2])
+
 	var l []float64
-	l = Read()
+	l = Read(filename)
 
 	var mag []float64
 	var phs []float64
 	var currentpos int
-	mag, phs, currentpos = Embedding(l)
+	mag, phs, currentpos = Embedding(l, watermark)
 
 	var newWav []float64
 	newWav = Reconstruct(mag, phs, l[currentpos:len(l)])
 
-	Write(newWav)
+	Write(newWav, outputfile)
 }
 
-func Read() []float64 {
-	file, _ := os.Open("RWC_60s/RWC_002.wav")
+func Read(filename string) []float64 {
+	file, _ := os.Open(filename)
 	reader, _ := wav.New(file)
 
 	l, _ := reader.ReadFloatsScale(reader.Samples)
@@ -61,17 +66,16 @@ func PrepareString(info string) string {
 		}
 		stringbit += substr
 	}
-
 	return stringbit
 }
 
-func Embedding(l []float64) ([]float64, []float64, int) {
+func Embedding(l []float64, watermark string) ([]float64, []float64, int) {
 	mag := make([]float64, 0)
 	phs := make([]float64, 0)
 
 	var i = SAMPLE_PER_FRAME - 1
 	var j = 0
-	var stringbit = PrepareString("Nguyen Trong Tin - Graduation Thesis - HCMUSNguyen Trong Tin - Graduation Thesis - HCMUSNguyen Trong Tin - Graduation Thesis - HCMUSNguyen Trong Tin - Graduation Thesis - HCMUSNguyen Trong Tin - Graduation Thesis - HCMUS")
+	var stringbit = PrepareString(watermark)
 
 	var pos = 0
 	for i < len(l) {
@@ -136,8 +140,8 @@ func Reconstruct(mag []float64, phs []float64, original []float64) []float64 {
 	return newWav
 }
 
-func Write(newWav []float64) {
-	wavOut, _ := os.Create("RWC_002_wm.wav")
+func Write(newWav []float64, outputfile string) {
+	wavOut, _ := os.Create(outputfile)
 	defer wavOut.Close()
 
 	meta := wavwriter.File{
@@ -156,7 +160,7 @@ func Write(newWav []float64) {
 }
 
 func QIMEncode(mag float64, phs float64, bit int) float64 {
-	step := [5]float64{PI / 32, PI / 28, PI / 24, PI / 20, PI / 16}
+	step := [5]float64{PI / 18, PI / 14, PI / 10, PI / 6, PI / 2}
 	var stepsize = findStep(mag)
 	if bit == 48 {
 		return math.Floor(phs/step[stepsize]+0.5) * step[stepsize]

@@ -18,15 +18,17 @@ const (
 )
 
 func main() {
+	var filename = string(os.Args[1]) + ".wav"
+
 	var l []float64
-	l = Read()
+	l = Read(filename)
 
 	var str string
-	str = Decode(l)
+	var biterr int
+	str, biterr = Decode(l)
 
-	var msg string
-	msg = Bit2Char(str)
-	fmt.Println(msg)
+	Bit2Char(str)
+	fmt.Print(biterr)
 }
 
 func Bit2Char(str string) string {
@@ -47,8 +49,8 @@ func Bit2Char(str string) string {
 	return msg
 }
 
-func Read() []float64 {
-	file, _ := os.Open("RWC_002_wm.wav")
+func Read(filename string) []float64 {
+	file, _ := os.Open(filename)
 	reader, _ := wav.New(file)
 
 	l, _ := reader.ReadFloatsScale(reader.Samples - 8)
@@ -57,7 +59,7 @@ func Read() []float64 {
 }
 
 func QIMDecode(mag float64, phs float64) int {
-	step := [5]float64{PI / 32, PI / 28, PI / 24, PI / 20, PI / 16}
+	step := [5]float64{PI / 18, PI / 14, PI / 10, PI / 6, PI / 2}
 	var stepsize = findStep(mag)
 	integer := int64(math.Floor(phs / (step[stepsize] / 2)))
 	r := phs/(step[stepsize]/2) - math.Floor(phs/(step[stepsize]/2))
@@ -78,7 +80,7 @@ func QIMDecode(mag float64, phs float64) int {
 	return 0
 }
 
-func Decode(l []float64) string {
+func Decode(l []float64) (string, int) {
 	mag := make([]float64, 0)
 	phs := make([]float64, 0)
 
@@ -86,7 +88,8 @@ func Decode(l []float64) string {
 	var j = 0
 	var pos = 0
 	var str = ""
-	var watermark = 220 * 8
+	var watermark = 500 * 8
+	var biterr = 0
 Loop:
 	for i < len(l) {
 		submag := make([]float64, i+1-j)
@@ -114,8 +117,14 @@ Loop:
 			}
 			if countzero+countone == BIT_REPEAT {
 				if countzero > countone {
+					if astr[pos] != '0' {
+						biterr++
+					}
 					str += "0"
 				} else {
+					if astr[pos] != '1' {
+						biterr++
+					}
 					str += "1"
 				}
 				countzero = 0
@@ -131,7 +140,7 @@ Loop:
 			i = len(l) - 1
 		}
 	}
-	return str
+	return str, biterr
 }
 
 func findStep(mag float64) int32 {
