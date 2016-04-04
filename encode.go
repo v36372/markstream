@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	FREQ_THRES       = 0.001
+	FREQ_THRES       = 0.0001
 	BIT_OFFSET       = 1
 	SAMPLE_PER_FRAME = 3000
 	BIT_REPEAT       = 5
