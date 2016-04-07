@@ -1,17 +1,13 @@
 package main
 
 import (
-	// "bufio"
+	"encoding/binary"
 	"fmt"
-	// "github.com/gin-gonic/gin"
 	"github.com/satori/go.uuid"
 	"log"
+	"math"
 	"math/rand"
 	"net"
-	// "net/http"
-	// "strings" // only needed below for sample processing
-	"encoding/binary"
-	"math"
 	"sync"
 	"time"
 )
@@ -43,7 +39,7 @@ func (m *Manager) AddClient(c *Client) {
 func (m *Manager) DeleteClient(id string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	// log.Println("delete client: %s", c.uuid)
+	log.Println("delete client: %s", id)
 	delete(m.clients, id)
 }
 
@@ -63,43 +59,36 @@ func (m *Manager) InitBackgroundTask() {
 func Float64bytes(float float64) []byte {
 	bits := math.Float64bits(float)
 	// bits +=
-	bytes := make([]byte, 16)
+	bytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(bytes, bits)
-	bytes = append(bytes, []byte("\n")...)
+	bytes = append(bytes, []byte(";")...)
 	return bytes
 }
 
 func main() {
-	fmt.Println("Launching server...")
 	m := NewManager()
 	m.out = make(chan float64)
 	go m.InitBackgroundTask()
 	ln, _ := net.Listen("tcp", ":8081") // accept connection on port
-	// conn, _ := ln.Accept()              // run loop forever (or until ctrl-c)
 
 	go func() {
 		for {
 			conn, _ := ln.Accept() // run loop forever (or until ctrl-c)
 			cl := new(Client)
 			cl.uuid = uuid.NewV4().String()
-			// cl.out = make(chan float64)
 			cl.conn = conn
-			// defer m.DeleteClient(cl.uuid)
 			m.AddClient(cl)
 		}
 	}()
 
-	for { // will listen for message to process ending in newline (\n)
-		// conn, _ := ln.Accept() // run loop forever (or until ctrl-c)
-		// message, _ := bufio.NewReader(conn).ReadString('\n') // output message received
-		// fmt.Print("Message Received:", string(message))      // sample process for string received
-		// newmessage := "hello" // send new string back to client
+	for {
 		select {
-		// case <-c.Writer.CloseNotify():
-		// 	log.Printf("%s : disconnected\n", cl.uuid)
 		case out := <-m.out:
 			for _, c := range m.clients {
-				c.conn.Write(Float64bytes(out))
+				_, err := c.conn.Write(Float64bytes(out))
+				if err != nil {
+					m.DeleteClient(c.uuid)
+				}
 			}
 		case <-time.After(time.Second * 20):
 			log.Println("timed out")
