@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/binary"
-	"fmt"
+	// "fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/satori/go.uuid"
 	"log"
 	"math"
 	"math/rand"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -51,7 +53,7 @@ func (m *Manager) InitBackgroundTask() {
 		// 	c.out <- f64
 		// }
 		m.out <- f64
-		log.Printf("sent output (%+v), sleeping for 10s...\n", f64)
+		log.Printf("sent output (%+v), sleeping for 1s...\n", f64)
 		time.Sleep(time.Second)
 	}
 }
@@ -67,9 +69,19 @@ func Float64bytes(float float64) []byte {
 
 func main() {
 	m := NewManager()
+
 	m.out = make(chan float64)
 	go m.InitBackgroundTask()
 	ln, _ := net.Listen("tcp", ":8081") // accept connection on port
+
+	router := gin.Default()
+	router.LoadHTMLGlob("templates/*")
+	//router.LoadHTMLFiles("templates/template1.html", "templates/template2.html")
+	router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+			"title": "Main website",
+		})
+	})
 
 	go func() {
 		for {
@@ -81,17 +93,21 @@ func main() {
 		}
 	}()
 
-	for {
-		select {
-		case out := <-m.out:
-			for _, c := range m.clients {
-				_, err := c.conn.Write(Float64bytes(out))
-				if err != nil {
-					m.DeleteClient(c.uuid)
+	go func() {
+		for {
+			select {
+			case out := <-m.out:
+				for _, c := range m.clients {
+					_, err := c.conn.Write(Float64bytes(out))
+					if err != nil {
+						m.DeleteClient(c.uuid)
+					}
 				}
+			case <-time.After(time.Second * 20):
+				log.Println("timed out")
 			}
-		case <-time.After(time.Second * 20):
-			log.Println("timed out")
 		}
-	}
+	}()
+
+	router.Run(":8080")
 }
