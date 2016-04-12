@@ -1,2 +1,2 @@
 'use strict'
-var MarkStream = angular.module('MarkStream',['ngWebsocket']);
+var MarkStream = angular.module('MarkStream',[]);

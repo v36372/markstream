@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	// "net"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -18,12 +19,13 @@ import (
 type Client struct {
 	uuid string
 	conn *websocket.Conn
-	out  chan float64
+	out  chan string
 }
 
 type Manager struct {
 	clients map[string]*Client
 	mutex   sync.Mutex
+	// out     chan string
 }
 
 var m *Manager
@@ -54,12 +56,17 @@ func (m *Manager) InitBackgroundTask() {
 		f64 := rand.Float64()
 		log.Printf("active clients: %d\n", len(m.clients))
 		for _, c := range m.clients {
-			c.out <- f64
+			c.out <- FloatToString(f64)
 		}
-		// m.out <- f64
+		// m.out <- FloatToString(f64)
 		log.Printf("sent output (%+v), sleeping for 1s...\n", f64)
 		time.Sleep(time.Second)
 	}
+}
+
+func FloatToString(input_num float64) string {
+	// to convert a float number to a string
+	return strconv.FormatFloat(input_num, 'f', 6, 64)
 }
 
 func Float64bytes(float float64) []byte {
@@ -77,27 +84,44 @@ func StreamServer(ws *websocket.Conn) {
 	cl := new(Client)
 	cl.uuid = uuid.NewV4().String()
 	cl.conn = ws
-	cl.out = make(chan float64)
+	cl.out = make(chan string)
 	m.AddClient(cl)
-	go func() {
-		for val := range cl.out {
-			log.Printf("send")
-			ws.Write(Float64bytes(val))
+	ws.Write([]byte("hehe1"))
+	ws.Write([]byte("hehe2"))
+	ws.Write([]byte("hehe3"))
+	ws.Write([]byte("hehe4"))
+	// go func() {
+	// log.Print(FloatToString(<-cl.out))
+	for val := range cl.out {
+		// 	select {
+		// 	// case <-c.Writer.CloseNotify():
+		// 	// 	log.Printf("%s : disconnected\n", cl.uuid)
+		// 	case out := <-cl.out:
+		// 		// log.Print(FloatToString(<-cl.out))
+		_, err := cl.conn.Write([]byte(val))
+		if err != nil {
+			m.DeleteClient(cl.uuid)
 		}
-	}()
+		// 	case <-time.After(time.Second * 20):
+		// 		log.Println("timed out")
+		// 	default:
+		// 		continue
+		// 	}
+	}
+	// }()
 }
 
 func main() {
 	m = NewManager()
 
-	// m.out = make(chan float64)
+	// m.out = make(chan string)
 	go m.InitBackgroundTask()
 	// go func() {
 	// 	for {
 	// 		select {
 	// 		case out := <-m.out:
 	// 			for _, c := range m.clients {
-	// 				_, err := c.conn.Write(Float64bytes(out))
+	// 				_, err := c.conn.Write([]byte(out))
 	// 				if err != nil {
 	// 					m.DeleteClient(c.uuid)
 	// 				}
