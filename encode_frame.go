@@ -47,7 +47,7 @@ func Read(filename string) []float64 {
 	reader, _ := wav.New(file)
 
 	l, _ := reader.ReadFloatsScale(reader.Samples)
-
+	// fmt.Println(l[0:100])
 	config.Header = reader.Header
 	return l
 }
@@ -82,6 +82,7 @@ func Embedding(l []float64, watermark string) ([]float64, []float64, int) {
 		submag := make([]float64, i+1-j)
 		subphs := make([]float64, i+1-j)
 		var subl = l[j : i+1]
+		// fmt.Println(subl)
 		subfourier := fft.FFTReal64(subl)
 		var count = 0
 		var bitrepeat = 0
