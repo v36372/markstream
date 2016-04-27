@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "fmt"
+	"fmt"
 	wavwriter "github.com/cryptix/wav"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
@@ -37,7 +37,9 @@ func main() {
 	mag, phs, currentpos = Embedding(l, watermark)
 
 	var newWav []float64
-	newWav = Reconstruct(mag, phs, l[currentpos:len(l)])
+	fmt.Println(currentpos)
+	newWav = Reconstruct(mag, phs)
+	// newWav = Reconstruct(mag, phs)
 
 	Write(newWav, outputfile)
 }
@@ -47,7 +49,7 @@ func Read(filename string) []float64 {
 	reader, _ := wav.New(file)
 
 	l, _ := reader.ReadFloatsScale(reader.Samples)
-	// fmt.Println(l[0:100])
+	// fmt.Println(len(l))
 	config.Header = reader.Header
 	return l
 }
@@ -66,6 +68,7 @@ func PrepareString(info string) string {
 		}
 		stringbit += substr
 	}
+	fmt.Println(stringbit)
 	return stringbit
 }
 
@@ -75,8 +78,9 @@ func Embedding(l []float64, watermark string) ([]float64, []float64, int) {
 
 	var i = SAMPLE_PER_FRAME - 1
 	var j = 0
+	fmt.Println(watermark)
 	var stringbit = PrepareString(watermark)
-
+	var bitrepeat = 0
 	var pos = 0
 	for i < len(l) {
 		submag := make([]float64, i+1-j)
@@ -85,12 +89,15 @@ func Embedding(l []float64, watermark string) ([]float64, []float64, int) {
 		// fmt.Println(subl)
 		subfourier := fft.FFTReal64(subl)
 		var count = 0
-		var bitrepeat = 0
+		// var bitrepeat = 0
 
 		for k, x := range subfourier {
 			submag[k], subphs[k] = cmplx.Polar(x)
 			if submag[k] < MAG_THRES || k == 0 {
 				continue
+			}
+			if count >= BIN_PER_FRAME {
+				break
 			}
 			if pos < len(stringbit) && count < BIN_PER_FRAME {
 				subphs[k] = QIMEncode(submag[k], subphs[k], int(stringbit[pos]))
@@ -101,14 +108,21 @@ func Embedding(l []float64, watermark string) ([]float64, []float64, int) {
 				bitrepeat = 0
 				pos++
 			}
+			if pos >= len(stringbit) {
+				// break
+				pos = 0
+			}
 		}
+		// fmt.Println(bitrepeat)
 		mag = append(mag, submag...)
 		phs = append(phs, subphs...)
 		if pos >= len(stringbit) {
-			break
+			// break
+			pos = 0
 		}
 		j = i + 1
 		i += SAMPLE_PER_FRAME
+		// fmt.Println(i)
 		if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
 			i = len(l) - 1
 		}
@@ -117,7 +131,7 @@ func Embedding(l []float64, watermark string) ([]float64, []float64, int) {
 	return mag, phs, i
 }
 
-func Reconstruct(mag []float64, phs []float64, original []float64) []float64 {
+func Reconstruct(mag []float64, phs []float64) []float64 {
 	cmplxArray := make([]complex128, len(mag))
 	for i, _ := range mag {
 		cmplxArray[i] = cmplx.Rect(mag[i], phs[i])
@@ -137,7 +151,7 @@ func Reconstruct(mag []float64, phs []float64, original []float64) []float64 {
 		}
 	}
 
-	newWav = append(newWav, original...)
+	// newWav = append(newWav, original...)
 	return newWav
 }
 

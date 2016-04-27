@@ -29,7 +29,7 @@ func main() {
 		cmdOut []byte
 		err    error
 	)
-	var str = "qSYiTF0HVcsmX7DejGD97PAP1p67jvQ854Z3NcJSmEMmASIk7gvSWYKtc3uGmUa8PZLLlSP0b4fsoaVOECIp6wJG3jbVE03zWka92lqkemNzcNLs88gfvePcktPOu2He3khAEVNO9aUPyYqFMCqjI9uz6i90WFPmZsTM5X2Q6HDhFONRcnIU7mPe4y2iGQwPBc44ADBJ3ikSVRcVLAHwXImAQXFtXa5JS226glGjY1T2nkhXIUfXR7RsinobNlU7T5nm1tOZV8M21W8msNs05zMael6tZls6oPSiGXEzce9ANAmZrybmWtFr59eyJ9YBacoTY0Q3B0ajNV1vyhOrRY96bRp92ga1y1nKoe0Z6RGl0BS61JsMwzExf2Xn79nYHWNT9ykrEVHBhpalP5k9hEFhgwnCrM9IKGD9BfgVrpP6597G5K4UW90Y0KWXp6LnpSp8yGpp2AUm76toeJVMF8p8GTRxuNJ1yJEo5m6VoHKHY7SW82Kw"
+	var str = "Nguyen Trong Tin - APCS12 - HCMUS - Graduation Thesis"
 	var basedir = "RWC_60s/"
 	lines, _ := readLines("testfiles.txt")
 	for i, x := range lines {

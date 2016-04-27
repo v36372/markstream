@@ -5,39 +5,39 @@ MarkStream.controller('MainController',['$scope','$timeout',function($scope,$tim
     var gain_node;
     var streaming_node;
 
-    var init_web_audio = function() {
-
-       if (typeof audio_context !== "undefined") {
-
-        return;     //      audio_context already defined
-        }
-
-        try {
-
-            window.AudioContext = window.AudioContext       ||
-            window.webkitAudioContext ||
-            window.mozAudioContext    ||
-            window.oAudioContext      ||
-            window.msAudioContext;
-
-            audio_context = new AudioContext();  //  cool audio context established
-            console.log("yay");
-
-        } catch (e) {
-
-            var error_msg = "Web Audio API is not supported by this browser\n" +
-            " ... http://caniuse.com/#feat=audio-api";
-            console.error(error_msg);
-            alert(error_msg);
-            throw new Error(error_msg);
-        }
-
-        gain_node = audio_context.createGain(); // Declare gain node
-        gain_node.connect(audio_context.destination); // Connect gain node to speakers
-
-    };
-    
-    init_web_audio();
+//    var init_web_audio = function() {
+//
+//       if (typeof audio_context !== "undefined") {
+//
+//        return;     //      audio_context already defined
+//        }
+//
+//        try {
+//
+//            window.AudioContext = window.AudioContext       ||
+//            window.webkitAudioContext ||
+//            window.mozAudioContext    ||
+//            window.oAudioContext      ||
+//            window.msAudioContext;
+//
+//            audio_context = new AudioContext();  //  cool audio context established
+//            console.log("yay");
+//
+//        } catch (e) {
+//
+//            var error_msg = "Web Audio API is not supported by this browser\n" +
+//            " ... http://caniuse.com/#feat=audio-api";
+//            console.error(error_msg);
+//            alert(error_msg);
+//            throw new Error(error_msg);
+//        }
+//
+//        gain_node = audio_context.createGain(); // Declare gain node
+//        gain_node.connect(audio_context.destination); // Connect gain node to speakers
+//
+//    };
+//    
+//    init_web_audio();
 
     ws.onopen = function(){  
         console.log("Socket has been opened!"); 

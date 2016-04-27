@@ -32,7 +32,7 @@ var config struct {
 
 var input chan string
 
-type frame []float64
+type frame []int16
 
 const (
 	MAG_THRES        = 0.0001
@@ -104,12 +104,25 @@ func Float64bytes(float float64) []byte {
 	return bytes
 }
 
+func Int16bytes(integer int16) []byte {
+	return []byte(integer)
+}
+
+func Int16ArrayByte(f []int16) []byte {
+	bytes := make([]byte, 0)
+	for _, val := range f {
+		bytes = append(bytes, Int16bytes(val)...)
+	}
+	// log.Println(len(bytes))
+	return bytes
+}
+
 func FloatArrayByte(f []float64) []byte {
 	bytes := make([]byte, 0)
 	for _, val := range f {
 		bytes = append(bytes, Float64bytes(val)...)
 	}
-	log.Println(len(bytes))
+	// log.Println(len(bytes))
 	return bytes
 }
 
@@ -134,7 +147,7 @@ func StreamServer(ws *websocket.Conn) {
 		// 	case out := <-cl.out:
 		// a := f
 		// a[0] = 1
-		_, err := cl.conn.Write([]byte(b64.StdEncoding.EncodeToString(FloatArrayByte(f))))
+		_, err := cl.conn.Write([]byte(b64.StdEncoding.EncodeToString(Int16ArrayByte(f))))
 		if err != nil {
 			m.DeleteClient(cl.uuid)
 		}
@@ -278,9 +291,9 @@ func Embedding(l []float64) {
 					cmplxArray[i] = cmplx.Rect(submag[i], subphs[i])
 				}
 				newWav := fft.IFFTRealOutput(cmplxArray)
-
+				Wav16bit = Scale(newWav)
 				for _, c := range m.clients {
-					c.out <- newWav
+					c.out <- Wav16bit
 				}
 
 				j = i + 1
@@ -291,8 +304,9 @@ func Embedding(l []float64) {
 			}
 		default:
 			// log.Println("gi z ta ?")
+			Wav16bit = Scale(subl)
 			for _, c := range m.clients {
-				c.out <- subl
+				c.out <- Wav16bit
 			}
 		}
 	}
@@ -316,6 +330,16 @@ func ReconstructWithoutAppend(mag []float64, phs []float64) []float64 {
 		if len(mag)-i >= 0 && len(mag)-i < SAMPLE_PER_FRAME {
 			i = len(mag) - 1
 		}
+	}
+
+	return newWav
+}
+
+func Scale(wav []float64) []int16 {
+	var newWav = make([]int16, len(wav))
+	for i, x := range wav {
+		integer := int16(x * math.MaxInt16)
+		newWav[i] = x
 	}
 
 	return newWav

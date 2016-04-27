@@ -88,9 +88,9 @@ func Decode(l []float64) (string, int) {
 	var j = 0
 	var pos = 0
 	var str = ""
-	var watermark = 500 * 8
+	var astr = "0100111001100111011101010111100101100101011011100101010001110010011011110110111001100111010101000110100101101110001011010100000101010000010000110101001100110001001100100010110101001000010000110101010101001101010100110010110101000111011100100110000101100100011101010110000101110100011010010110111101101110010101000110100001100101011100110110100101110011"
+	var watermark = 352
 	var biterr = 0
-Loop:
 	for i < len(l) {
 		submag := make([]float64, i+1-j)
 		subphs := make([]float64, i+1-j)
@@ -104,33 +104,46 @@ Loop:
 			if submag[k] < MAG_THRES || k == 0 {
 				continue
 			}
+			if count >= BIN_PER_FRAME {
+				break
+			}
 			if pos < watermark && count < BIN_PER_FRAME {
 				var bit = QIMDecode(submag[k], subphs[k])
 				count++
 				if bit == 1 {
-					countone++
-				} else {
-					countzero++
-				}
-			} else if pos >= watermark {
-				break Loop
-			}
-			if countzero+countone == BIT_REPEAT {
-				if countzero > countone {
-					if astr[pos] != '0' {
-						biterr++
-					}
-					str += "0"
-				} else {
 					if astr[pos] != '1' {
 						biterr++
 					}
+					countone++
+				} else {
+					if astr[pos] != '0' {
+						biterr++
+					}
+					countzero++
+				}
+			}
+			if pos >= watermark {
+				// break Loop
+				// fmt.Println(Bit2Char(str))
+				str = ""
+				pos = 0
+			}
+			if countzero+countone == BIT_REPEAT {
+				if countzero > countone {
+					str += "0"
+				} else {
 					str += "1"
 				}
 				countzero = 0
 				countone = 0
 				pos++
 			}
+		}
+		if pos >= watermark {
+			// break Loop
+			// fmt.Println(Bit2Char(str))
+			str = ""
+			pos = 0
 		}
 		mag = append(mag, submag...)
 		phs = append(phs, subphs...)
