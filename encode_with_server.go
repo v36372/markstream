@@ -2,7 +2,7 @@ package main
 
 import (
 	// "fmt"
-	b64 "encoding/base64"
+	// b64 "encoding/base64"
 	"encoding/binary"
 	wavwriter "github.com/cryptix/wav"
 	"github.com/mjibson/go-dsp/fft"
@@ -32,7 +32,7 @@ var config struct {
 
 var input chan string
 
-type frame []int16
+type frame []float64
 
 const (
 	MAG_THRES        = 0.0001
@@ -96,16 +96,19 @@ func FloatToString(input_num float64) string {
 }
 
 func Float64bytes(float float64) []byte {
-	bits := math.Float64bits(float)
+	bits := math.Float32bits(float32(float))
 	// bits +=
-	bytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bytes, bits)
+	bytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bytes, bits)
 	// bytes = append(bytes, []byte(";")...)
 	return bytes
 }
 
 func Int16bytes(integer int16) []byte {
-	return []byte(integer)
+	bytes := make([]byte, 2)
+	bytes[0] = uint8(integer >> 8)
+	bytes[1] = uint8(integer & 0xff)
+	return bytes
 }
 
 func Int16ArrayByte(f []int16) []byte {
@@ -147,7 +150,8 @@ func StreamServer(ws *websocket.Conn) {
 		// 	case out := <-cl.out:
 		// a := f
 		// a[0] = 1
-		_, err := cl.conn.Write([]byte(b64.StdEncoding.EncodeToString(Int16ArrayByte(f))))
+		// _, err := cl.conn.Write([]byte(b64.StdEncoding.EncodeToString(Int16ArrayByte(f))))
+		err := websocket.Message.Send(cl.conn, FloatArrayByte(f))
 		if err != nil {
 			m.DeleteClient(cl.uuid)
 		}
@@ -164,7 +168,7 @@ func Process() {
 	// var filename = string(os.Args[1]) + ".wav"
 	// var outputfile = string(os.Args[1]) + "_wm.wav"
 	// var watermark = string(os.Args[2])
-	var filename = "RWC_60s/RWC_001.wav"
+	var filename = "RWC_60s/RWC_002.wav"
 	// var outputfile = "RWC_60s/RWC_001_wm.wav"
 	// var watermark = "Nguyen Trong Tin"
 
@@ -291,24 +295,25 @@ func Embedding(l []float64) {
 					cmplxArray[i] = cmplx.Rect(submag[i], subphs[i])
 				}
 				newWav := fft.IFFTRealOutput(cmplxArray)
-				Wav16bit = Scale(newWav)
+				// Wav16bit := Scale(newWav)
 				for _, c := range m.clients {
-					c.out <- Wav16bit
-				}
-
-				j = i + 1
-				i += SAMPLE_PER_FRAME
-				if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
-					i = len(l) - 1
+					c.out <- newWav
 				}
 			}
 		default:
 			// log.Println("gi z ta ?")
-			Wav16bit = Scale(subl)
+			// Wav16bit := Scale(subl)
+			log.Println(subl[0])
 			for _, c := range m.clients {
-				c.out <- Wav16bit
+				c.out <- subl
 			}
 		}
+		j = i + 1
+		i += SAMPLE_PER_FRAME
+		if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
+			i = len(l) - 1
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
@@ -339,7 +344,7 @@ func Scale(wav []float64) []int16 {
 	var newWav = make([]int16, len(wav))
 	for i, x := range wav {
 		integer := int16(x * math.MaxInt16)
-		newWav[i] = x
+		newWav[i] = integer
 	}
 
 	return newWav
