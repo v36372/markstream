@@ -32,7 +32,7 @@ var config struct {
 
 var input chan string
 
-type frame []float64
+type frame []int16
 
 const (
 	MAG_THRES        = 0.0001
@@ -106,8 +106,9 @@ func Float64bytes(float float64) []byte {
 
 func Int16bytes(integer int16) []byte {
 	bytes := make([]byte, 2)
-	bytes[0] = uint8(integer >> 8)
-	bytes[1] = uint8(integer & 0xff)
+	// big edian
+	bytes[1] = uint8(integer >> 8)
+	bytes[0] = uint8(integer & 0xff)
 	return bytes
 }
 
@@ -151,7 +152,7 @@ func StreamServer(ws *websocket.Conn) {
 		// a := f
 		// a[0] = 1
 		// _, err := cl.conn.Write([]byte(b64.StdEncoding.EncodeToString(Int16ArrayByte(f))))
-		err := websocket.Message.Send(cl.conn, FloatArrayByte(f))
+		err := websocket.Message.Send(cl.conn, Int16ArrayByte(f))
 		if err != nil {
 			m.DeleteClient(cl.uuid)
 		}
@@ -295,17 +296,17 @@ func Embedding(l []float64) {
 					cmplxArray[i] = cmplx.Rect(submag[i], subphs[i])
 				}
 				newWav := fft.IFFTRealOutput(cmplxArray)
-				// Wav16bit := Scale(newWav)
+				Wav16bit := Scale(newWav)
 				for _, c := range m.clients {
-					c.out <- newWav
+					c.out <- Wav16bit
 				}
 			}
 		default:
 			// log.Println("gi z ta ?")
-			// Wav16bit := Scale(subl)
-			log.Println(subl[0])
+			Wav16bit := Scale(subl)
+			log.Println(Wav16bit[0])
 			for _, c := range m.clients {
-				c.out <- subl
+				c.out <- Wav16bit
 			}
 		}
 		j = i + 1

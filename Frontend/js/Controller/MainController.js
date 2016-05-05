@@ -11,12 +11,12 @@ MarkStream.controller('MainController',['$scope','$timeout',function($scope,$tim
     
     
     ws.onmessage = function (event) {
-        var frame = {};
-        frame.buffer = new Float32Array(event.data);
-//        audio_context.decodeAudioData(event.data, function(buffer) {
-        queue.push(frame);
-//        }, null);
-        
+        var frame = new Int16Array(event.data);
+        var floatframe = new Float32Array(frame.length);
+        for(var i=0;i<frame.length;i++){
+            floatframe[i] = frame[i]/32767;
+        }
+        queue.push(floatframe);
     };
     
     var closed = false;
@@ -27,7 +27,7 @@ MarkStream.controller('MainController',['$scope','$timeout',function($scope,$tim
 
         for (var i = 0; i<queue.length; ++i) {
           // Create/set audio buffer for each chunk
-          var audioChunk = queue[i].buffer;
+          var audioChunk = queue[i];
           var audioBuffer = audio_context.createBuffer(1, 22050, 44100);
           audioBuffer.getChannelData(0).set(audioChunk);
 
@@ -35,9 +35,7 @@ MarkStream.controller('MainController',['$scope','$timeout',function($scope,$tim
           source.buffer = audioBuffer;
           source.start(startTime);
           source.connect(audio_context.destination);
-//          console.log(audioBuffer.duration);
           startTime += audioBuffer.duration;
-          console.log(startTime);
         }
 
     };
