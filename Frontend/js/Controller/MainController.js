@@ -11,13 +11,25 @@ MarkStream.controller('MainController',['$scope','$timeout',function($scope,$tim
     
     
     ws.onmessage = function (event) {
+        console.log(event);
+        if(event.data == "start"){
+            console.log("hehe");
+            return;
+        }
+        if(event.data == "end"){
+            console.log("hieie");
+            return;
+        }
         var frame = new Int16Array(event.data);
+//        console.log(frame);
         var floatframe = new Float32Array(frame.length);
         for(var i=0;i<frame.length;i++){
             floatframe[i] = frame[i]/32767;
         }
         queue.push(floatframe);
     };
+    
+    
     
     var closed = false;
     

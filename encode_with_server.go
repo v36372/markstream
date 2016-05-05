@@ -17,7 +17,7 @@ import (
 	"golang.org/x/net/websocket"
 	"log"
 	// "math"
-	"math/rand"
+	// "math/rand"
 	// "net"
 	"net/http"
 	// "strconv"
@@ -51,7 +51,7 @@ type Client struct {
 type Manager struct {
 	clients map[string]*Client
 	mutex   sync.Mutex
-	// out     chan string
+	embedd  chan string
 }
 
 var m *Manager
@@ -59,6 +59,7 @@ var m *Manager
 func NewManager() *Manager {
 	m := new(Manager)
 	m.clients = make(map[string]*Client)
+	m.embedd = make(chan string)
 	return m
 }
 
@@ -78,15 +79,10 @@ func (m *Manager) DeleteClient(id string) {
 
 func (m *Manager) InitBackgroundTask() {
 	// log.Printf("aaaaaaaa")
-	for {
-		f64 := rand.Float64()
-		log.Printf("active clients: %d\n", len(m.clients))
-		// for _, c := range m.clients {
-		// c.out <- FloatToString(f64)
-		// }
-		// m.out <- FloatToString(f64)
-		log.Printf("sent output (%+v), sleeping for 1s...\n", f64)
-		time.Sleep(time.Second)
+	for msg := range m.embedd {
+		for _, cl := range m.clients {
+			cl.conn.Write([]byte(msg))
+		}
 	}
 }
 
@@ -193,6 +189,9 @@ func Input() {
 		log.Printf("Nhap zo di: ")
 		text, _ := reader.ReadString('\n')
 		input <- text
+		m.embedd <- "start"
+		log.Println("Embedding...")
+		time.Sleep(5 * time.Second)
 		// log.Printf("ahihi")
 	}
 }
@@ -200,11 +199,11 @@ func Input() {
 func main() {
 	m = NewManager()
 	input = make(chan string)
+	go m.InitBackgroundTask()
 	go Process()
 	go Input()
 
 	// m.out = make(chan string)
-	// go m.InitBackgroundTask()
 
 	http.Handle("/stream", websocket.Handler(StreamServer))
 
@@ -261,16 +260,19 @@ func Embedding(l []float64) {
 	// var stringbit = PrepareString("Nguyen Trong Tin")
 
 	var pos = 0
+	var flag = false
 	for i < len(l) {
-		var subl = l[j : i+1]
 		select {
 		case watermark := <-input:
-			log.Println("zo roi ne")
+			// log.Println("zo roi ne")
+			flag = true
+
 			submag := make([]float64, i+1-j)
 			subphs := make([]float64, i+1-j)
 			log.Println(watermark)
 			var stringbit = PrepareString(watermark)
 			for pos < len(stringbit) {
+				var subl = l[j : i+1]
 				subfourier := fft.FFTReal64(subl)
 				var count = 0
 				var bitrepeat = 0
@@ -297,22 +299,36 @@ func Embedding(l []float64) {
 				}
 				newWav := fft.IFFTRealOutput(cmplxArray)
 				Wav16bit := Scale(newWav)
+				log.Println(Wav16bit[0])
 				for _, c := range m.clients {
 					c.out <- Wav16bit
 				}
+				j = i + 1
+				i += SAMPLE_PER_FRAME
+				if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
+					i = len(l) - 1
+				}
+				time.Sleep(500 * time.Millisecond)
 			}
 		default:
 			// log.Println("gi z ta ?")
+			if flag {
+				flag = false
+				go func() {
+					m.embedd <- "end"
+				}()
+			}
+			var subl = l[j : i+1]
 			Wav16bit := Scale(subl)
 			log.Println(Wav16bit[0])
 			for _, c := range m.clients {
 				c.out <- Wav16bit
 			}
-		}
-		j = i + 1
-		i += SAMPLE_PER_FRAME
-		if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
-			i = len(l) - 1
+			j = i + 1
+			i += SAMPLE_PER_FRAME
+			if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
+				i = len(l) - 1
+			}
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
