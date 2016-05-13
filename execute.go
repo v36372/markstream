@@ -43,6 +43,8 @@ func main() {
 			// os.Exit(1)
 			fmt.Println(err)
 		}
+		sha := string(cmdOut)
+		fmt.Print(" ", sha)
 
 		cmdName = "./decode_frame"
 		cmdArgs = []string{filename + "_wm"}
@@ -51,7 +53,7 @@ func main() {
 			// os.Exit(1)
 			fmt.Println(err)
 		}
-		sha := string(cmdOut)
+		sha = string(cmdOut)
 		fmt.Println(sha)
 		// cmdName = "wine"
 		// cmdArgs = []string{"ResampAudio.exe", "-s", "48000", filename + ".wav", filename + "_sample.wav"}

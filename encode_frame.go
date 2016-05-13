@@ -5,10 +5,12 @@ import (
 	wavwriter "github.com/cryptix/wav"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
+	// "log"
 	"math"
 	"math/cmplx"
 	"os"
 	"strconv"
+	"time"
 )
 
 var config struct {
@@ -33,15 +35,23 @@ func main() {
 
 	var mag []float64
 	var phs []float64
-	var currentpos int
-	mag, phs, currentpos = Embedding(l, watermark)
 
+	// log.Println(watermark)
+	start := time.Now()
+	mag, phs = Embedding(l, watermark)
+	elapsed := time.Since(start)
+	fmt.Printf("%s ", elapsed)
 	var newWav []float64
-	fmt.Println(currentpos)
+	// fmt.Println(currentpos)
+	start = time.Now()
 	newWav = Reconstruct(mag, phs)
 	// newWav = Reconstruct(mag, phs)
-
+	elapsed = time.Since(start)
+	fmt.Printf("  %s ", elapsed)
+	start = time.Now()
 	Write(newWav, outputfile)
+	elapsed = time.Since(start)
+	fmt.Printf("  %s ", elapsed)
 }
 
 func Read(filename string) []float64 {
@@ -68,17 +78,17 @@ func PrepareString(info string) string {
 		}
 		stringbit += substr
 	}
-	fmt.Println(stringbit)
+	// log.Println(stringbit)
 	return stringbit
 }
 
-func Embedding(l []float64, watermark string) ([]float64, []float64, int) {
+func Embedding(l []float64, watermark string) ([]float64, []float64) {
 	mag := make([]float64, 0)
 	phs := make([]float64, 0)
 
 	var i = SAMPLE_PER_FRAME - 1
 	var j = 0
-	fmt.Println(watermark)
+	// fmt.Println(watermark)
 	var stringbit = PrepareString(watermark)
 	var bitrepeat = 0
 	var pos = 0
@@ -128,7 +138,7 @@ func Embedding(l []float64, watermark string) ([]float64, []float64, int) {
 		}
 	}
 
-	return mag, phs, i
+	return mag, phs
 }
 
 func Reconstruct(mag []float64, phs []float64) []float64 {
