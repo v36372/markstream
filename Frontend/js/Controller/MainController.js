@@ -15,26 +15,21 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
         $timeout(function(){
             startTime = audio_context.currentTime+0.5;
             promise = $interval(Process, 400);
-            // Process();
         },5000);
     };
 
     $scope.watermarks = [];
 
     ws.onmessage = function (event) {
-        // console.log(event);
         if(event.data == "start"){
-            // console.log("hehe");
             embedd = true;
             return;
         }
         if(event.data == "end"){
-            // console.log("hieie");
             embedd = false;
             return;
         }
         var frame = new Int16Array(event.data);
-//        console.log(frame);
         var floatframe = {};
         floatframe.buffer = new Float32Array(frame.length);
         for(var i=0;i<frame.length;i++){
@@ -46,20 +41,9 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
         }
         else floatframe.wm = "";
         queue.push(floatframe);
-        // if(queue.length>5)
-        // $timeout(Process,500);
-        // Process();
     };
 
-    // $timeout(function(){
-    //     while(!closed){
-    //         $timeout(Process, 500);
-    //     }
-    // },500);
-    // var startTime = audio_context.currentTime;
     var Process = function(){
-        // startTime = audio_context.currentTime;
-        // while(!closed){
         if(queue.length==0)
             return;
         var audioChunk = queue[0].buffer;
@@ -74,12 +58,7 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
         source.connect(audio_context.destination);
         startTime += audioBuffer.duration;
         if(queue[0].embedd == true){
-        //            console.log("hahahahahahaha");
-        //             var watermark = Decode(audioChunk);
             source.wm = queue[0].wm;
-        // source.audioprocess = function(event){
-        //     console.log
-        // };
             source.onended = function(){
                 console.log(this.wm);
                 var wm = this.wm;
@@ -88,12 +67,9 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
                     $scope.watermarks[$scope.watermarks.length-1] += wm;
                 else
                     $scope.watermarks.push(wm);
-                // $scope.watermark += this.wm;
             };
         }
         queue.shift();
-        // }
-        // console.log("hehe");
     };
     var startTime;
     var promise;
@@ -206,33 +182,6 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
         closed = true;
         $interval.cancel(promise);
         console.log("closed");
-//        var startTime = audio_context.currentTime;
-//
-//        for (var i = 0; i<queue.length; ++i) {
-//          // Create/set audio buffer for each chunk
-//          var audioChunk = queue[i].buffer;
-//          var audioBuffer = audio_context.createBuffer(1, 22050, 44100);
-//          audioBuffer.getChannelData(0).set(audioChunk);
-//
-//          var source = audio_context.createBufferSource();
-//          source.buffer = audioBuffer;
-//          console.log(queue[i]);
-//          if(queue[i].embedd == true){
-////            console.log("hahahahahahaha");
-////             var watermark = Decode(audioChunk);
-//             source.watermark = Decode(audioChunk);
-//            // source.audioprocess = function(event){
-//            //     console.log
-//            // };
-//             source.onended = function(){
-//                 console.log(this.watermark);
-//             };
-//          }
-//          source.start(startTime);
-//          source.connect(audio_context.destination);
-//          startTime += audioBuffer.duration;
-//        }
-
     };
 
 }]);

@@ -1,27 +1,19 @@
 package main
 
 import (
-	// "fmt"
-	// b64 "encoding/base64"
+	"bufio"
 	"encoding/binary"
 	wavwriter "github.com/cryptix/wav"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
-	"math"
-	"math/cmplx"
-	"os"
-	"strconv"
-	// "fmt"
-	// "github.com/gin-gonic/gin"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/websocket"
 	"log"
-	// "math"
-	// "math/rand"
-	// "net"
+	"math"
+	"math/cmplx"
 	"net/http"
-	// "strconv"
-	"bufio"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -78,7 +70,6 @@ func (m *Manager) DeleteClient(id string) {
 }
 
 func (m *Manager) InitBackgroundTask() {
-	// log.Printf("aaaaaaaa")
 	for msg := range m.embedd {
 		for _, cl := range m.clients {
 			cl.conn.Write([]byte(msg))
@@ -87,16 +78,13 @@ func (m *Manager) InitBackgroundTask() {
 }
 
 func FloatToString(input_num float64) string {
-	// to convert a float number to a string
 	return strconv.FormatFloat(input_num, 'f', 18, 64)
 }
 
 func Float64bytes(float float64) []byte {
 	bits := math.Float32bits(float32(float))
-	// bits +=
 	bytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytes, bits)
-	// bytes = append(bytes, []byte(";")...)
 	return bytes
 }
 
@@ -113,7 +101,6 @@ func Int16ArrayByte(f []int16) []byte {
 	for _, val := range f {
 		bytes = append(bytes, Int16bytes(val)...)
 	}
-	// log.Println(len(bytes))
 	return bytes
 }
 
@@ -122,65 +109,31 @@ func FloatArrayByte(f []float64) []byte {
 	for _, val := range f {
 		bytes = append(bytes, Float64bytes(val)...)
 	}
-	// log.Println(len(bytes))
 	return bytes
 }
 
 // Echo the data received on the WebSocket.
 func StreamServer(ws *websocket.Conn) {
-	// io.Copy(ws, ws)
 	cl := new(Client)
 	cl.uuid = uuid.NewV4().String()
 	cl.conn = ws
 	cl.out = make(chan frame)
 	m.AddClient(cl)
-	// ws.Write([]byte("hehe1"))
-	// ws.Write([]byte("hehe2"))
-	// ws.Write([]byte("hehe3"))
-	// ws.Write([]byte("hehe4"))
-	// go func() {
-	// log.Print(FloatToString(<-cl.out))
 	for f := range cl.out {
-		// 	select {
-		// 	// case <-c.Writer.CloseNotify():
-		// 	// 	log.Printf("%s : disconnected\n", cl.uuid)
-		// 	case out := <-cl.out:
-		// a := f
-		// a[0] = 1
-		// _, err := cl.conn.Write([]byte(b64.StdEncoding.EncodeToString(Int16ArrayByte(f))))
 		err := websocket.Message.Send(cl.conn, Int16ArrayByte(f))
 		if err != nil {
 			m.DeleteClient(cl.uuid)
 		}
-		// 	case <-time.After(time.Second * 20):
-		// 		log.Println("timed out")
-		// 	default:
-		// 		continue
-		// 	}
 	}
-	// }()
 }
 
 func Process() {
-	// var filename = string(os.Args[1]) + ".wav"
-	// var outputfile = string(os.Args[1]) + "_wm.wav"
-	// var watermark = string(os.Args[2])
 	var filename = "RWC_60s/RWC_002.wav"
-	// var outputfile = "RWC_60s/RWC_001_wm.wav"
-	// var watermark = "Nguyen Trong Tin"
 
 	var l []float64
 	l = Read(filename)
 
-	// var mag []float64
-	// var phs []float64
-	// var currentpos int
 	Embedding(l)
-
-	// var newWav []float64
-	// newWav = Reconstruct(mag, phs, l[currentpos:len(l)])
-
-	// Write(newWav, outputfile)
 }
 
 func Input() {
@@ -192,7 +145,6 @@ func Input() {
 		m.embedd <- "start"
 		log.Println("Embedding...")
 		time.Sleep(5 * time.Second)
-		// log.Printf("ahihi")
 	}
 }
 
@@ -203,18 +155,7 @@ func main() {
 	go Process()
 	go Input()
 
-	// m.out = make(chan string)
-
 	http.Handle("/stream", websocket.Handler(StreamServer))
-
-	// router := gin.Default()
-	// router.LoadHTMLGlob("templates/*")
-	// //router.LoadHTMLFiles("templates/template1.html", "templates/template2.html")
-	// router.GET("/", func(c *gin.Context) {
-	// 	c.HTML(http.StatusOK, "index.tmpl", gin.H{
-	// 		"title": "Main website",
-	// 	})
-	// })
 
 	err := http.ListenAndServe(":8081", nil)
 	if err != nil {
@@ -251,15 +192,9 @@ func PrepareString(info string) string {
 }
 
 func Embedding(l []float64) {
-	// mag := make([]float64, 0)
-	// phs := make([]float64, 0)
-
 	var i = SAMPLE_PER_FRAME - 1
 	var j = 0
-	// var stringbit = PrepareString(watermark)
-	// var stringbit = PrepareString("Nguyen Trong Tin")
 
-	// var pos = 0
 	var flag = false
 	for i < len(l) {
 		select {
@@ -299,7 +234,6 @@ func Embedding(l []float64) {
 				}
 				newWav := fft.IFFTRealOutput(cmplxArray)
 				Wav16bit := Scale(newWav)
-				// log.Println(Wav16bit[0])
 				for _, c := range m.clients {
 					c.out <- Wav16bit
 				}
@@ -311,7 +245,6 @@ func Embedding(l []float64) {
 				time.Sleep(500 * time.Millisecond)
 			}
 		default:
-			// log.Println("gi z ta ?")
 			if flag {
 				flag = false
 				go func() {
@@ -320,7 +253,6 @@ func Embedding(l []float64) {
 			}
 			var subl = l[j : i+1]
 			Wav16bit := Scale(subl)
-			// log.Println(Wav16bit[0])
 			for _, c := range m.clients {
 				c.out <- Wav16bit
 			}
