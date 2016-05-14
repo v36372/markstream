@@ -10,8 +10,19 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
     var queue = [];
     
     var embedd = false;
+
+    $scope.play = function(){
+        $timeout(function(){
+            startTime = audio_context.currentTime+0.5;
+            promise = $interval(Process, 400);
+            // Process();
+        },5000);
+    };
+
+    $scope.watermarks = [];
+
     ws.onmessage = function (event) {
-        console.log(event);
+        // console.log(event);
         if(event.data == "start"){
             // console.log("hehe");
             embedd = true;
@@ -71,6 +82,13 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
         // };
             source.onended = function(){
                 console.log(this.wm);
+                var wm = this.wm;
+
+                if($scope.watermarks.length >0 && $scope.watermarks[$scope.watermarks.length-1].lastIndexOf('\n') == -1)
+                    $scope.watermarks[$scope.watermarks.length-1] += wm;
+                else
+                    $scope.watermarks.push(wm);
+                // $scope.watermark += this.wm;
             };
         }
         queue.shift();
@@ -79,12 +97,6 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
     };
     var startTime;
     var promise;
-    $timeout(function(){
-        startTime = audio_context.currentTime+0.5;
-        promise = $interval(Process, 400);
-        // Process();
-    },5000);
-
     var closed = false;
     
     var Decode = function(audioChunk){
@@ -106,7 +118,7 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
         var countone = 0;
         var countzero = 0;
         var str = "";
-        for (var i = 1; i < 800; i++) {
+        for (var i = 0; i < 800; i++) {
             if (mag[i] < 0.0001){
 				continue;
 			}
@@ -127,11 +139,12 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
 			}
         }
         str = Bit2Char(str);
-        var tmp = str.lastIndexOf("~");
+        console.log(str);
+        var tmp = str.lastIndexOf('\n');
         if(tmp == -1)
             return str;
         else
-            return str.substr(0,str.lastIndexOf("~"));
+            return str.substr(0,tmp);
     };
 
     var Bit2Char = function(bits){

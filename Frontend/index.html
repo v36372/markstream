@@ -20,5 +20,11 @@
     <script src="lib/bluesteinfft.js"></script>
   </head>
     <body ng-app="MarkStream" ng-controller="MainController">
+    <button ng-click=play()>Play</button>
+    <div ng-repeat="wm in watermarks">
+        <p>
+            {{wm}}
+        </p>
+    </div>
     </body>
 </html>

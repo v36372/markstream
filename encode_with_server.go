@@ -270,7 +270,7 @@ func Embedding(l []float64) {
 			submag := make([]float64, i+1-j)
 			subphs := make([]float64, i+1-j)
 			log.Println(watermark)
-			var stringbit = PrepareString(watermark + "~")
+			var stringbit = PrepareString(watermark + "\n")
 			for pos < len(stringbit) {
 				var subl = l[j : i+1]
 				subfourier := fft.FFTReal64(subl)
@@ -279,7 +279,7 @@ func Embedding(l []float64) {
 
 				for k, x := range subfourier {
 					submag[k], subphs[k] = cmplx.Polar(x)
-					if submag[k] < MAG_THRES || k == 0 {
+					if submag[k] < MAG_THRES {
 						continue
 					}
 					if pos < len(stringbit) && count < BIN_PER_FRAME {
