@@ -259,18 +259,18 @@ func Embedding(l []float64) {
 	// var stringbit = PrepareString(watermark)
 	// var stringbit = PrepareString("Nguyen Trong Tin")
 
-	var pos = 0
+	// var pos = 0
 	var flag = false
 	for i < len(l) {
 		select {
 		case watermark := <-input:
-			// log.Println("zo roi ne")
+			log.Println("zo roi ne")
 			flag = true
-
+			var pos = 0
 			submag := make([]float64, i+1-j)
 			subphs := make([]float64, i+1-j)
 			log.Println(watermark)
-			var stringbit = PrepareString(watermark)
+			var stringbit = PrepareString(watermark + "~")
 			for pos < len(stringbit) {
 				var subl = l[j : i+1]
 				subfourier := fft.FFTReal64(subl)
@@ -299,7 +299,7 @@ func Embedding(l []float64) {
 				}
 				newWav := fft.IFFTRealOutput(cmplxArray)
 				Wav16bit := Scale(newWav)
-				log.Println(Wav16bit[0])
+				// log.Println(Wav16bit[0])
 				for _, c := range m.clients {
 					c.out <- Wav16bit
 				}
@@ -320,7 +320,7 @@ func Embedding(l []float64) {
 			}
 			var subl = l[j : i+1]
 			Wav16bit := Scale(subl)
-			log.Println(Wav16bit[0])
+			// log.Println(Wav16bit[0])
 			for _, c := range m.clients {
 				c.out <- Wav16bit
 			}
