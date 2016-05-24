@@ -15,7 +15,7 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval',function
         $timeout(function(){
             startTime = audio_context.currentTime+0.5;
             promise = $interval(Process, 400);
-        },5000);
+        },500);
     };
 
     $scope.watermarks = [];

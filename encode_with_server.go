@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
-	wavwriter "github.com/cryptix/wav"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
 	"github.com/satori/go.uuid"
@@ -139,7 +138,7 @@ func Process() {
 func Input() {
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		log.Printf("Nhap zo di: ")
+		log.Printf("Input your embedding string: ")
 		text, _ := reader.ReadString('\n')
 		input <- text
 		m.embedd <- "start"
@@ -199,7 +198,6 @@ func Embedding(l []float64) {
 	for i < len(l) {
 		select {
 		case watermark := <-input:
-			log.Println("zo roi ne")
 			flag = true
 			var pos = 0
 			submag := make([]float64, i+1-j)
@@ -266,29 +264,6 @@ func Embedding(l []float64) {
 	}
 }
 
-func ReconstructWithoutAppend(mag []float64, phs []float64) []float64 {
-	cmplxArray := make([]complex128, len(mag))
-	for i, _ := range mag {
-		cmplxArray[i] = cmplx.Rect(mag[i], phs[i])
-	}
-
-	var i = SAMPLE_PER_FRAME - 1
-	var j = 0
-	var newWav = make([]float64, 0)
-	for i < len(mag) {
-		var subcmplx = cmplxArray[j : i+1]
-		subIFFT := fft.IFFTRealOutput(subcmplx)
-		newWav = append(newWav, subIFFT...)
-		j = i + 1
-		i += SAMPLE_PER_FRAME
-		if len(mag)-i >= 0 && len(mag)-i < SAMPLE_PER_FRAME {
-			i = len(mag) - 1
-		}
-	}
-
-	return newWav
-}
-
 func Scale(wav []float64) []int16 {
 	var newWav = make([]int16, len(wav))
 	for i, x := range wav {
@@ -297,49 +272,6 @@ func Scale(wav []float64) []int16 {
 	}
 
 	return newWav
-}
-
-func Reconstruct(mag []float64, phs []float64, original []float64) []float64 {
-	cmplxArray := make([]complex128, len(mag))
-	for i, _ := range mag {
-		cmplxArray[i] = cmplx.Rect(mag[i], phs[i])
-	}
-
-	var i = SAMPLE_PER_FRAME - 1
-	var j = 0
-	var newWav = make([]float64, 0)
-	for i < len(mag) {
-		var subcmplx = cmplxArray[j : i+1]
-		subIFFT := fft.IFFTRealOutput(subcmplx)
-		newWav = append(newWav, subIFFT...)
-		j = i + 1
-		i += SAMPLE_PER_FRAME
-		if len(mag)-i >= 0 && len(mag)-i < SAMPLE_PER_FRAME {
-			i = len(mag) - 1
-		}
-	}
-
-	newWav = append(newWav, original...)
-	return newWav
-}
-
-func Write(newWav []float64, outputfile string) {
-	wavOut, _ := os.Create(outputfile)
-	defer wavOut.Close()
-
-	meta := wavwriter.File{
-		Channels:        1,
-		SampleRate:      config.Header.SampleRate,
-		SignificantBits: config.Header.BitsPerSample,
-	}
-
-	writer, _ := meta.NewWriter(wavOut)
-	defer writer.Close()
-
-	for n := 0; n < len(newWav); n += 1 {
-		integer := int16(newWav[n] * math.MaxInt16)
-		writer.WriteInt16(integer)
-	}
 }
 
 func QIMEncode(mag float64, phs float64, bit int) float64 {
