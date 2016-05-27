@@ -42,7 +42,7 @@ type Client struct {
 type Manager struct {
 	clients map[string]*Client
 	mutex   sync.Mutex
-	embedd  chan string
+	// embedd  chan string
 }
 
 var m *Manager
@@ -50,7 +50,7 @@ var m *Manager
 func NewManager() *Manager {
 	m := new(Manager)
 	m.clients = make(map[string]*Client)
-	m.embedd = make(chan string)
+	// m.embedd = make(chan string)
 	return m
 }
 
@@ -68,13 +68,13 @@ func (m *Manager) DeleteClient(id string) {
 	delete(m.clients, id)
 }
 
-func (m *Manager) InitBackgroundTask() {
-	for msg := range m.embedd {
-		for _, cl := range m.clients {
-			cl.conn.Write([]byte(msg))
-		}
-	}
-}
+// func (m *Manager) InitBackgroundTask() {
+// 	for msg := range m.embedd {
+// 		for _, cl := range m.clients {
+// 			cl.conn.Write([]byte(msg))
+// 		}
+// 	}
+// }
 
 func FloatToString(input_num float64) string {
 	return strconv.FormatFloat(input_num, 'f', 18, 64)
@@ -141,7 +141,7 @@ func Input() {
 		log.Printf("Input your embedding string: ")
 		text, _ := reader.ReadString('\n')
 		input <- text
-		m.embedd <- "start"
+		// m.embedd <- "start"
 		log.Println("Embedding...")
 		time.Sleep(5 * time.Second)
 	}
@@ -150,7 +150,7 @@ func Input() {
 func main() {
 	m = NewManager()
 	input = make(chan string)
-	go m.InitBackgroundTask()
+	// go m.InitBackgroundTask()
 	go Process()
 	go Input()
 
@@ -194,16 +194,16 @@ func Embedding(l []float64) {
 	var i = SAMPLE_PER_FRAME - 1
 	var j = 0
 
-	var flag = false
+	// var flag = false
 	for i < len(l) {
 		select {
 		case watermark := <-input:
-			flag = true
+			// flag = true
 			var pos = 0
 			submag := make([]float64, i+1-j)
 			subphs := make([]float64, i+1-j)
-			log.Println(watermark)
-			var stringbit = PrepareString(watermark + "\n")
+			// log.Println(watermark)
+			var stringbit = PrepareString("1" + watermark + "\n")
 			for pos < len(stringbit) {
 				var subl = l[j : i+1]
 				subfourier := fft.FFTReal64(subl)
@@ -240,17 +240,48 @@ func Embedding(l []float64) {
 				if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
 					i = len(l) - 1
 				}
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(400 * time.Millisecond)
 			}
 		default:
-			if flag {
-				flag = false
-				go func() {
-					m.embedd <- "end"
-				}()
-			}
+			// if flag {
+			// 	flag = false
+			// 	go func() {
+			// 		m.embedd <- "end"
+			// 	}()
+			// }
+			var pos = 0
 			var subl = l[j : i+1]
-			Wav16bit := Scale(subl)
+			subfourier := fft.FFTReal64(subl)
+			submag := make([]float64, i+1-j)
+			subphs := make([]float64, i+1-j)
+			var stringbit = PrepareString("0")
+			for pos < len(stringbit) {
+				var count = 0
+				var bitrepeat = 0
+
+				for k, x := range subfourier {
+					submag[k], subphs[k] = cmplx.Polar(x)
+					if submag[k] < MAG_THRES {
+						continue
+					}
+					if pos < len(stringbit) && count < BIN_PER_FRAME {
+						subphs[k] = QIMEncode(submag[k], subphs[k], int(stringbit[pos]))
+						count++
+						bitrepeat++
+					}
+					if bitrepeat == BIT_REPEAT {
+						bitrepeat = 0
+						pos++
+					}
+				}
+
+			}
+			cmplxArray := make([]complex128, len(subl))
+			for i, _ := range cmplxArray {
+				cmplxArray[i] = cmplx.Rect(submag[i], subphs[i])
+			}
+			newWav := fft.IFFTRealOutput(cmplxArray)
+			Wav16bit := Scale(newWav)
 			for _, c := range m.clients {
 				c.out <- Wav16bit
 			}
@@ -259,8 +290,8 @@ func Embedding(l []float64) {
 			if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
 				i = len(l) - 1
 			}
+			time.Sleep(400 * time.Millisecond)
 		}
-		time.Sleep(500 * time.Millisecond)
 	}
 }
 
