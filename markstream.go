@@ -11,12 +11,6 @@ import (
 	"math"
 )
 
-type MarkStream struct {
-  userInputChan chan string
-  log *log.Logger
-  connManager *Manager
-}
-
 const (
   MAG_THRES        = 0.0001
   SAMPLE_PER_FRAME = 22050
@@ -24,6 +18,21 @@ const (
   BIT_REPEAT       = 5
   PI               = math.Pi
 )
+
+type MarkStream struct {
+  userInputChan chan string
+  connManager *Manager
+}
+
+func NewMarkStream() *MarkStream{
+	ms := new(MarkStream)
+	ms.userInputChan = make(chan string)
+	ms.connManager = new(Manager)
+	ms.connManager.clients = make(map[string]*Client)
+	ms.connManager.audioDataChan = make(chan frame)
+
+	return ms
+}
 
 // Echo the data received on the WebSocket.
 func (ms *MarkStream) StreamServer(ws *websocket.Conn) {
