@@ -1,80 +1,16 @@
-package main
+package markstream
 
 import (
-	"bufio"
 	"encoding/binary"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
-	"github.com/satori/go.uuid"
-	"golang.org/x/net/websocket"
-	"log"
 	"math"
 	"math/cmplx"
-	"net/http"
 	"os"
 	"strconv"
-	"sync"
 	"time"
+
 )
-
-var config struct {
-	Header wav.Header
-}
-
-var input chan string
-
-type frame []int16
-
-const (
-	MAG_THRES        = 0.0001
-	SAMPLE_PER_FRAME = 22050
-	BIN_PER_FRAME    = 800
-	BIT_REPEAT       = 5
-	PI               = math.Pi
-)
-
-type Client struct {
-	uuid string
-	conn *websocket.Conn
-	out  chan frame
-}
-
-type Manager struct {
-	clients map[string]*Client
-	mutex   sync.Mutex
-	// embedd  chan string
-}
-
-var m *Manager
-
-func NewManager() *Manager {
-	m := new(Manager)
-	m.clients = make(map[string]*Client)
-	// m.embedd = make(chan string)
-	return m
-}
-
-func (m *Manager) AddClient(c *Client) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	log.Printf("add client: %s\n", c.uuid)
-	m.clients[c.uuid] = c
-}
-
-func (m *Manager) DeleteClient(id string) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	log.Println("delete client: %s", id)
-	delete(m.clients, id)
-}
-
-// func (m *Manager) InitBackgroundTask() {
-// 	for msg := range m.embedd {
-// 		for _, cl := range m.clients {
-// 			cl.conn.Write([]byte(msg))
-// 		}
-// 	}
-// }
 
 func FloatToString(input_num float64) string {
 	return strconv.FormatFloat(input_num, 'f', 18, 64)
@@ -111,64 +47,13 @@ func FloatArrayByte(f []float64) []byte {
 	return bytes
 }
 
-// Echo the data received on the WebSocket.
-func StreamServer(ws *websocket.Conn) {
-	cl := new(Client)
-	cl.uuid = uuid.NewV4().String()
-	cl.conn = ws
-	cl.out = make(chan frame)
-	m.AddClient(cl)
-	for f := range cl.out {
-		err := websocket.Message.Send(cl.conn, Int16ArrayByte(f))
-		if err != nil {
-			m.DeleteClient(cl.uuid)
-		}
-	}
-}
-
-func Process() {
-	var filename = "RWC_60s/RWC_002.wav"
-
-	var l []float64
-	l = Read(filename)
-
-	Embedding(l)
-}
-
-func Input() {
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		log.Printf("Input your embedding string: ")
-		text, _ := reader.ReadString('\n')
-		input <- text
-		// m.embedd <- "start"
-		log.Println("Embedding...")
-		time.Sleep(5 * time.Second)
-	}
-}
-
-func main() {
-	m = NewManager()
-	input = make(chan string)
-	// go m.InitBackgroundTask()
-	go Process()
-	go Input()
-
-	http.Handle("/stream", websocket.Handler(StreamServer))
-
-	err := http.ListenAndServe(":8081", nil)
-	if err != nil {
-		panic("ListenAndServe: " + err.Error())
-	}
-}
-
-func Read(filename string) []float64 {
+func (ms *MarkStream) Read(filename string) []float64 {
 	file, _ := os.Open(filename)
 	reader, _ := wav.New(file)
 
 	l, _ := reader.ReadFloatsScale(reader.Samples)
 
-	config.Header = reader.Header
+	// config.Header = reader.Header
 	return l
 }
 
@@ -190,14 +75,14 @@ func PrepareString(info string) string {
 	return stringbit
 }
 
-func Embedding(l []float64) {
+func (ms *MarkStream) Embedding(l []float64) {
 	var i = SAMPLE_PER_FRAME - 1
 	var j = 0
 
 	// var flag = false
 	for i < len(l) {
 		select {
-		case watermark := <-input:
+		case watermark := <-ms.userInputChan:
 			// flag = true
 			var pos = 0
 			submag := make([]float64, i+1-j)
@@ -232,9 +117,9 @@ func Embedding(l []float64) {
 				}
 				newWav := fft.IFFTRealOutput(cmplxArray)
 				Wav16bit := Scale(newWav)
-				for _, c := range m.clients {
-					c.out <- Wav16bit
-				}
+				// for _, c := range m.clients {
+				ms.connManager.audioDataChan <- Wav16bit
+				// }
 				j = i + 1
 				i += SAMPLE_PER_FRAME
 				if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
@@ -282,9 +167,9 @@ func Embedding(l []float64) {
 			}
 			newWav := fft.IFFTRealOutput(cmplxArray)
 			Wav16bit := Scale(newWav)
-			for _, c := range m.clients {
-				c.out <- Wav16bit
-			}
+			// for _, c := range m.clients {
+			ms.connManager.audioDataChan <- Wav16bit
+			// }
 			j = i + 1
 			i += SAMPLE_PER_FRAME
 			if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
