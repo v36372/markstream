@@ -2,34 +2,33 @@ package markstream
 
 import (
 	"bufio"
-	// "github.com/kataras/iris"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/websocket"
 	"log"
+	"math"
 	"os"
 	"time"
-	"math"
 )
 
 const (
-  MAG_THRES        = 0.0001
-  SAMPLE_PER_FRAME = 22050
-  BIN_PER_FRAME    = 800
-  BIT_REPEAT       = 5
-  PI               = math.Pi
+	MAG_THRES        = 0.0001
+	SAMPLE_PER_FRAME = 22050
+	BIN_PER_FRAME    = 800
+	BIT_REPEAT       = 5
+	PI               = math.Pi
 )
 
 type MarkStream struct {
-  userInputChan chan string
-  connManager *Manager
+	userInputChan chan string
+	ConnManager   *Manager
 }
 
-func NewMarkStream() *MarkStream{
+func NewMarkStream() *MarkStream {
 	ms := new(MarkStream)
 	ms.userInputChan = make(chan string)
-	ms.connManager = new(Manager)
-	ms.connManager.clients = make(map[string]*Client)
-	ms.connManager.audioDataChan = make(chan frame)
+	ms.ConnManager = new(Manager)
+	ms.ConnManager.clients = make(map[string]*Client)
+	ms.ConnManager.audioDataChan = make(chan frame)
 
 	return ms
 }
@@ -39,14 +38,10 @@ func (ms *MarkStream) StreamServer(ws *websocket.Conn) {
 	cl := new(Client)
 	cl.uuid = uuid.NewV4().String()
 	cl.conn = ws
-	// cl.out = make(chan frame)
-	ms.connManager.AddClient(cl)
-	// for f := range cl.out {
-	// 	err := websocket.Message.Send(cl.conn, Int16ArrayByte(f))
-	// 	if err != nil {
-	// 		m.DeleteClient(cl.uuid)
-	// 	}
-	// }
+	cl.exit = make(chan bool)
+	ms.ConnManager.AddClient(cl)
+
+	<-cl.exit
 }
 
 func (ms *MarkStream) Process() {
@@ -59,12 +54,11 @@ func (ms *MarkStream) Process() {
 }
 
 func (ms *MarkStream) Input() {
+	reader := bufio.NewReader(os.Stdin)
 	for {
-		reader := bufio.NewReader(os.Stdin)
 		log.Printf("Input your embedding string: ")
 		text, _ := reader.ReadString('\n')
 		ms.userInputChan <- text
-		// m.embedd <- "start"
 		log.Println("Embedding...")
 		time.Sleep(5 * time.Second)
 	}

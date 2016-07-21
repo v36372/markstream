@@ -1,11 +1,9 @@
 package main
 
 import (
-	"markstream"
-  // "net/http"
-  // "golang.org/x/net/websocket"
-  "github.com/kataras/iris"
-  "github.com/iris-contrib/middleware/logger"
+	"golang.org/x/net/websocket"
+	"$GOPATH/src/markstream"
+	"net/http"
 )
 
 type page struct {
@@ -14,21 +12,14 @@ type page struct {
 
 func main() {
 	ms := markstream.NewMarkStream()
-	// go m.InitBackgroundTask()
 	go ms.Process()
 	go ms.Input()
+	go ms.ConnManager.StreamToClients()
 
-  iris.Config.Render.Template.Directory = "templates/web/default"
-  iris.Config.Render.Template.Gzip = true
-  iris.OnError(iris.StatusForbidden, func(ctx *iris.Context) {
-		ctx.HTML(iris.StatusForbidden, "<h1> You are not allowed here </h1>")
-	})
-  iris.Static("/css", "./resources/css", 1)
-	iris.Static("/js", "./resources/js", 1)
-  iris.Use(logger.New(iris.Logger))
-  iris.Get("/", func(ctx *iris.Context) {
-		ctx.MustRender("index.html", page{"Hello world"})
-	})
+	http.Handle("/stream", websocket.Handler(ms.StreamServer))
 
-	iris.Listen(":8080")
+	err := http.ListenAndServe(":8081", nil)
+	if err != nil {
+		panic("ListenAndServe: " + err.Error())
+	}
 }

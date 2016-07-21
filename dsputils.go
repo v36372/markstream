@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-
 )
 
 func FloatToString(input_num float64) string {
@@ -79,15 +78,12 @@ func (ms *MarkStream) Embedding(l []float64) {
 	var i = SAMPLE_PER_FRAME - 1
 	var j = 0
 
-	// var flag = false
 	for i < len(l) {
 		select {
 		case watermark := <-ms.userInputChan:
-			// flag = true
 			var pos = 0
 			submag := make([]float64, i+1-j)
 			subphs := make([]float64, i+1-j)
-			// log.Println(watermark)
 			var stringbit = PrepareString("1" + watermark + "\n")
 			for pos < len(stringbit) {
 				var subl = l[j : i+1]
@@ -117,9 +113,7 @@ func (ms *MarkStream) Embedding(l []float64) {
 				}
 				newWav := fft.IFFTRealOutput(cmplxArray)
 				Wav16bit := Scale(newWav)
-				// for _, c := range m.clients {
-				ms.connManager.audioDataChan <- Wav16bit
-				// }
+				ms.ConnManager.audioDataChan <- Wav16bit
 				j = i + 1
 				i += SAMPLE_PER_FRAME
 				if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
@@ -128,12 +122,6 @@ func (ms *MarkStream) Embedding(l []float64) {
 				time.Sleep(400 * time.Millisecond)
 			}
 		default:
-			// if flag {
-			// 	flag = false
-			// 	go func() {
-			// 		m.embedd <- "end"
-			// 	}()
-			// }
 			var pos = 0
 			var subl = l[j : i+1]
 			subfourier := fft.FFTReal64(subl)
@@ -167,9 +155,7 @@ func (ms *MarkStream) Embedding(l []float64) {
 			}
 			newWav := fft.IFFTRealOutput(cmplxArray)
 			Wav16bit := Scale(newWav)
-			// for _, c := range m.clients {
-			ms.connManager.audioDataChan <- Wav16bit
-			// }
+			ms.ConnManager.audioDataChan <- Wav16bit
 			j = i + 1
 			i += SAMPLE_PER_FRAME
 			if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {

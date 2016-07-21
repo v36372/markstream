@@ -7,138 +7,176 @@ import (
 	"math"
 	"math/cmplx"
 	"os"
+	"strconv"
 )
 
+var config struct {
+	Header        wav.Header
+	MAG_THRES     float64
+	BIN_PER_FRAME int
+	STEP_SIZE     float64
+}
+
 const (
-	FREQ_THRES       = 0.0001
-	BIT_OFFSET       = 10000
-	SAMPLE_PER_FRAME = 3000
+	SAMPLE_PER_FRAME = 22050
 	BIT_REPEAT       = 5
+	PI               = math.Pi
 )
 
 func main() {
-	file, _ := os.Open("test_wm.wav")
-	reader, _ := wav.New(file)
-	l, err := reader.ReadFloats(reader.Samples - 8)
-	if err != nil {
-		fmt.Println(err)
-	}
+	var filename = string(os.Args[1]) + ".wav"
+	config.MAG_THRES, _ = strconv.ParseFloat(os.Args[2], 64)
+	config.BIN_PER_FRAME, _ = strconv.Atoi(os.Args[3])
+	temp, _ := strconv.Atoi(os.Args[4])
+	config.STEP_SIZE = float64(temp)
 
-	fmt.Println(l[1], " ", l[2], " ", l[3], " ", l[4], " ", l[5], " ", l[6], " ", l[7], " ", l[8])
-	//----------------------fft the whole file-------------------
-	mag := make([]float64, reader.Samples)
-	phs := make([]float64, reader.Samples)
+	var l []float64
+	l = Read(filename)
 
-	fmt.Println(mag[0])
-	fourier := fft.FFTReal(l)
+	var str string
+	var biterr int
+	var charerr int
+	// fmt.Print("\n......\n")
+	str, biterr, charerr = Decode(l)
+	fmt.Print("\n")
+	Bit2Char(str)
+	fmt.Print("\n")
+	fmt.Print(biterr, " ", charerr)
+}
 
-	for i, a := range fourier {
-		mag[i], phs[i] = cmplx.Polar(a)
-	}
-	//----------------------fft the whole file-------------------
-
-	//---------------------divide into frames---------------------
-	// mag := make([]float64, 0)
-	// phs := make([]float64, 0)
-	//
-	// var max float64
-	// max = 0
-	// var i = SAMPLE_PER_FRAME-1
-	// var j = 0
-	// for i<len(l) {
-	//   max = 0
-	//   submag := make([]float64, i+1-j)
-	//   subphs := make([]float64, i+1-j)
-	//   // fmt.Println(j, " ", i+1)
-	//   var subl = l[j:i+1]
-	//   // fmt.Println(len(subl))
-	//   subfourier :=  fft.FFTReal(subl)
-	//   // fmt.Println(subfourier)
-	//   for k,x :=range subfourier {
-	//     submag[k],subphs[k] = cmplx.Polar(x)
-	//     if submag[k] > max {
-	//       max = submag[k]
-	//     }
-	//   }
-	//   mag = append(mag, submag...)
-	//   phs = append(phs, subphs...)
-	//   j=i+1
-	//   i+=SAMPLE_PER_FRAME
-	//   // fmt.Println(max)
-	//   if len(l)-i>=0&&len(l)-i<SAMPLE_PER_FRAME{
-	//     i=len(l)-1
-	//   }
-	// }
-	//---------------------divide into frames---------------------
-
-	var str = ""
-	var pi = math.Pi
-	step := [5]float64{pi / 48, pi / 40, pi / 32, pi / 24, pi / 16}
-	var k = BIT_OFFSET
-	var countzero = 0
-	var countone = 1
-	var res = 0
-	// var samplestr = "01001110011001110111010101111001011001010110111000100000010101000111001001101111011011100110011100100000010101000110100101101110"
-	for res < 60*8 {
-		if math.Abs(mag[k]) < FREQ_THRES {
-			k++
-			continue
-		}
-		var stepsize = findStep(mag[k])
-		integer := int64(math.Floor(phs[k] / (step[stepsize] / 2)))
-		r := phs[k]/(step[stepsize]/2) - math.Floor(phs[k]/(step[stepsize]/2))
-		// fmt.Println(phs[k]," ",r)
-		if r < 0.5 {
-			if integer%2 == 0 {
-				// if samplestr[res] != '0'{
-				//   fmt.Println(phs[k], " ", res, " ", k, " ",samplestr[res])
-				// }
-				countzero++
-			} else {
-				// if samplestr[res] != '1'{
-				//   fmt.Println(phs[k], " ", res, " ", k, " ",samplestr[res]," 1 ne")
-				// }
-				countone++
-			}
-		}
-		if r >= 0.5 {
-			if integer%2 == 0 {
-				// if samplestr[res] != '1'{
-				//   fmt.Println(phs[k], " ", res, " ", k, " ",samplestr[res], " 1 ne")
-				// }
-				countone++
-			} else {
-				// if samplestr[res] != '0'{
-				//   fmt.Println(phs[k], " ", res, " ", k, " ",samplestr[res])
-				// }
-				countzero++
-			}
-		}
-		if countzero+countone == BIT_REPEAT {
-			fmt.Println(countzero, " ", countone, " ", res)
-			if countzero > countone {
-				str += "0"
-			} else {
-				str += "1"
-			}
-			countzero = 0
-			countone = 0
-			res++
-		}
-		k++
-	}
-	fmt.Println(str)
+func Bit2Char(str string) string {
+	var msg string
 	var sum byte
+	msg = ""
 	var last = 0
 	for i, _ := range str {
 		sum <<= 1
 		sum += str[i] - '0'
 		if (i-last+1)%8 == 0 {
-			fmt.Print(string(sum))
+			msg += string(sum)
 			sum = 0
 			last = i + 1
 		}
 	}
+
+	return msg
+}
+
+func Read(filename string) []float64 {
+	file, _ := os.Open(filename)
+	reader, _ := wav.New(file)
+
+	l, _ := reader.ReadFloatsScale(reader.Samples - 8)
+
+	return l
+}
+
+func QIMDecode(mag float64, phs float64) int {
+	step := [5]float64{PI / float64(8+config.STEP_SIZE), PI / float64(6+config.STEP_SIZE), PI / float64(4+config.STEP_SIZE), PI / float64(2+config.STEP_SIZE), PI / (config.STEP_SIZE)}
+	var stepsize = findStep(mag)
+	integer := int64(math.Floor(phs / (step[stepsize] / 2)))
+	r := phs/(step[stepsize]/2) - math.Floor(phs/(step[stepsize]/2))
+	if r < 0.5 {
+		if integer%2 == 0 {
+			return 0
+		} else {
+			return 1
+		}
+	}
+	if r >= 0.5 {
+		if integer%2 == 0 {
+			return 1
+		} else {
+			return 0
+		}
+	}
+	return 0
+}
+
+func Decode(l []float64) (string, int, int) {
+	// mag := make([]float64, 0)
+	// phs := make([]float64, 0)
+
+	var i = SAMPLE_PER_FRAME - 1
+	var j = 0
+	var pos = 0
+	var str = ""
+	var astr = "0100111001100111011101010111100101100101011011100010000001010100011100100110111101101110011001110010000001010100011010010110111000100000001011010010000001000001010100000100001101010011001100010011001000100000001011010010000001001000010000110100110101010101010100110010000000101101001000000100011101110010011000010110010001110101011000010111010001101001011011110110111000100000010101000110100001100101011100110110100101110011"
+	var watermark = 424
+	var biterr = 0
+	var charerr = 0
+	for i < len(l) {
+		submag := make([]float64, i+1-j)
+		subphs := make([]float64, i+1-j)
+		var subl = l[j : i+1]
+		subfourier := fft.FFTReal64(subl)
+		var countone = 0
+		var countzero = 0
+		var count = 0
+		for k, x := range subfourier {
+			submag[k], subphs[k] = cmplx.Polar(x)
+			if submag[k] < config.MAG_THRES || k == 0 {
+				continue
+			}
+			if count >= config.BIN_PER_FRAME {
+				break
+			}
+			if pos < watermark && count < config.BIN_PER_FRAME {
+				var bit = QIMDecode(submag[k], subphs[k])
+				count++
+				if bit == 1 {
+					if astr[pos] != '1' {
+						fmt.Println(k, " ", submag[k])
+						biterr++
+					}
+					countone++
+				} else {
+					if astr[pos] != '0' {
+						fmt.Println(k, " ", submag[k])
+						biterr++
+					}
+					countzero++
+				}
+			}
+			if countzero+countone == BIT_REPEAT {
+				if countzero > countone {
+					if astr[pos] != '0' {
+						charerr++
+					}
+					str += "0"
+				} else {
+					if astr[pos] != '1' {
+						charerr++
+					}
+					str += "1"
+				}
+				countzero = 0
+				countone = 0
+				pos++
+			}
+			if pos >= watermark {
+				// break Loop
+				// fmt.Println(Bit2Char(str))
+				str = ""
+				pos = 0
+			}
+		}
+		if pos >= watermark {
+			// break Loop
+			// fmt.Println(Bit2Char(str))
+			str = ""
+			pos = 0
+		}
+		// mag = append(mag, submag...)
+		// phs = append(phs, subphs...)
+		j = i + 1
+		i += SAMPLE_PER_FRAME
+		if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
+			i = len(l) - 1
+		}
+	}
+	// fmt.Println(Bit2Char(str))
+	return str, biterr, charerr
 }
 
 func findStep(mag float64) int32 {

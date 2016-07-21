@@ -11,10 +11,11 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval','decode'
     
     var embedd = false;
 
+    var intervalPromise;
     $scope.play = function(){
         $timeout(function(){
             startTime = audio_context.currentTime+0.5;
-            promise = $interval(Process, 490);
+            intervalPromise = $interval(Process, 490);
         },500);
     };
 
@@ -27,12 +28,9 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval','decode'
         for(var i=0;i<frame.length;i++){
             floatframe.buffer[i] = frame[i]/32767;
         }
-        // floatframe.embedd = embedd;
-        // if(embedd){
         var promise = decode.QIMDecode(floatframe.buffer);
         promise.then(
             function(payload){
-//                console.log(payload);
                 if(payload != null && payload.length > 0)
                     floatframe.wm = payload;
             },
@@ -40,15 +38,12 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval','decode'
                 console.log("error : " + errorPayload);
             });
 
-        // }
-        // else floatframe.wm = "";
         queue.push(floatframe);
     };
 
     var Process = function(){
         if(queue.length==0)
         {
-            console.log("shit");
             return;
         }
 
@@ -58,24 +53,15 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval','decode'
 
         var source = audio_context.createBufferSource();
         source.buffer = audioBuffer;
-        // console.log(queue[0]);
-//        console.log(startTime);
-//        var d2 = new Date().getTime();
-//        console.log(d2 + " " + d1);
         source.start(startTime);
         source.connect(audio_context.destination);
         startTime += audioBuffer.duration;
         if(queue[0].wm != null){
-//            console.log("haha");
             console.log(queue[0].wm);
-//            var d1 = new Date().getTime();
-//            console.log(d1);
             source.wm = queue[0].wm;
             source.onended = function(){
                 
                 console.log(this.wm);
-//                var d2 = new Date().getTime();
-//                console.log(d2);
                 var wm = this.wm;
 
                 if($scope.watermarks.length >0 && $scope.watermarks[$scope.watermarks.length-1].lastIndexOf('\n') == -1)
@@ -91,8 +77,7 @@ MarkStream.controller('MainController',['$scope','$timeout','$interval','decode'
 
     ws.onclose = function () {
         closed = true;
-        $interval.cancel(promise);
+        $interval.cancel(intervalPromise);
         console.log("closed");
     };
-
 }]);

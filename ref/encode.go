@@ -5,82 +5,76 @@ import (
 	wavwriter "github.com/cryptix/wav"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
+	// "log"
 	"math"
 	"math/cmplx"
 	"os"
 	"strconv"
+	"time"
 )
 
+var config struct {
+	Header        wav.Header
+	MAG_THRES     float64
+	BIN_PER_FRAME int
+	STEP_SIZE     float64
+}
+
 const (
-	FREQ_THRES       = 0.1
-	BIT_OFFSET       = 1
-	SAMPLE_PER_FRAME = 3000
+	SAMPLE_PER_FRAME = 22050
 	BIT_REPEAT       = 5
+	PI               = math.Pi
 )
 
 func main() {
-	file, _ := os.Open("test.wav")
+	var filename = string(os.Args[1]) + ".wav"
+	var watermark = string(os.Args[2])
+	config.MAG_THRES, _ = strconv.ParseFloat(os.Args[3], 64)
+	config.BIN_PER_FRAME, _ = strconv.Atoi(os.Args[4])
+	temp, _ := strconv.Atoi(os.Args[5])
+	config.STEP_SIZE = float64(temp)
+	var outputfile = string(os.Args[1]) + "_" + os.Args[5] + "_wm.wav"
+
+	var l []float64
+	l = Read(filename)
+
+	var mag []float64
+	var phs []float64
+
+	// log.Println(watermark)
+	start := time.Now()
+	mag, phs = Embedding(l, watermark)
+	elapsed := time.Since(start)
+	fmt.Printf("%s ", elapsed)
+	var newWav []float64
+	// fmt.Println(currentpos)
+	start = time.Now()
+	newWav = Reconstruct(mag, phs)
+	// newWav = Reconstruct(mag, phs)
+	elapsed = time.Since(start)
+	fmt.Printf("  %s ", elapsed)
+	start = time.Now()
+	Write(newWav, outputfile)
+	elapsed = time.Since(start)
+	fmt.Printf("  %s ", elapsed)
+}
+
+func Read(filename string) []float64 {
+	file, _ := os.Open(filename)
 	reader, _ := wav.New(file)
 
-	l, err := reader.ReadFloats(reader.Samples)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(reader.Header.ByteRate)
-	fmt.Println(reader.Header.SampleRate)
-	//---------------------fft the whole file-------------------------
-	mag := make([]float64, reader.Samples)
-	phs := make([]float64, reader.Samples)
+	l, _ := reader.ReadFloatsScale(reader.Samples)
+	// fmt.Println(len(l))
+	config.Header = reader.Header
+	return l
+}
 
-	fourier := fft.FFTReal(l)
-	for i, a := range fourier {
-		mag[i], phs[i] = cmplx.Polar(a)
-	}
-	//----------------------fft the whole file------------------------
-
-	//==================================================================
-
-	//-------------------divide into frames--------------------------
-	// mag := make([]float64, 0)
-	// phs := make([]float64, 0)
-	//
-	// var max float64
-	// max = 0
-	// var i = SAMPLE_PER_FRAME-1
-	// var j = 0
-	// for i<len(l) {
-	//   max = 0
-	//   submag := make([]float64, i+1-j)
-	//   subphs := make([]float64, i+1-j)
-	//   var subl = l[j:i+1]
-	//   // fmt.Println(len(submag))
-	//   subfourier :=  fft.FFTReal(subl)
-	//   for k,x :=range subfourier {
-	//     submag[k],subphs[k] = cmplx.Polar(x)
-	//     if submag[k] > max {
-	//       max = submag[k]
-	//     }
-	//   }
-	//   // fmt.Println(len(mag))
-	//   mag = append(mag, submag...)
-	//   phs = append(phs, subphs...)
-	//   j=i+1
-	//   i+=SAMPLE_PER_FRAME
-	//   if len(l)-i>0&&len(l)-i<SAMPLE_PER_FRAME{
-	//     i=len(l)-1
-	//   }
-	// }
-	//-------------------divide into frames--------------------------
-
-	var pi = math.Pi
-	step := [5]float64{pi / 48, pi / 40, pi / 32, pi / 24, pi / 16}
-
-	var info = "Nguyen Trong Tin - Graduation Thesis - University of Science"
+func PrepareString(info string) string {
 	var stringbit = ""
 	byteArray := []byte(info)
 	for _, char := range byteArray {
 		n := int64(char)
-		substr := strconv.FormatInt(n, 2) // 111001
+		substr := strconv.FormatInt(n, 2)
 		if len(substr) < 8 {
 			length := len(substr)
 			for j := 1; j <= 8-length; j++ {
@@ -89,87 +83,119 @@ func main() {
 		}
 		stringbit += substr
 	}
-	fmt.Println(stringbit)
+	// log.Println(stringbit)
+	return stringbit
+}
 
-	var k = BIT_OFFSET
-	var count = 0
+func Embedding(l []float64, watermark string) ([]float64, []float64) {
+	mag := make([]float64, 0)
+	phs := make([]float64, 0)
+
+	var i = SAMPLE_PER_FRAME - 1
+	var j = 0
+	// fmt.Println(watermark)
+	var stringbit = PrepareString(watermark)
+	var bitrepeat = 0
 	var pos = 0
-	for pos < len(stringbit) {
-		if math.Abs(mag[k]) < FREQ_THRES {
-			k++
-			continue
+	for i < len(l) {
+		submag := make([]float64, i+1-j)
+		subphs := make([]float64, i+1-j)
+		var subl = l[j : i+1]
+		// fmt.Println(subl)
+		subfourier := fft.FFTReal64(subl)
+		var count = 0
+		// var bitrepeat = 0
+
+		for k, x := range subfourier {
+			submag[k], subphs[k] = cmplx.Polar(x)
+			if submag[k] < config.MAG_THRES || k == 0 {
+				continue
+			}
+			if count >= config.BIN_PER_FRAME {
+				break
+			}
+			if pos < len(stringbit) && count < config.BIN_PER_FRAME {
+				subphs[k] = QIMEncode(submag[k], subphs[k], int(stringbit[pos]))
+				count++
+				bitrepeat++
+			}
+			if bitrepeat == BIT_REPEAT {
+				bitrepeat = 0
+				pos++
+			}
+			if pos >= len(stringbit) {
+				// break
+				pos = 0
+			}
 		}
-		var stepsize = findStep(mag[k])
-		if stringbit[pos] == '0' {
-			phs[k] = math.Floor(phs[k]/step[stepsize]+0.5) * step[stepsize]
+		// fmt.Println(bitrepeat)
+		mag = append(mag, submag...)
+		phs = append(phs, subphs...)
+		if pos >= len(stringbit) {
+			// break
+			pos = 0
 		}
-		if stringbit[pos] == '1' {
-			phs[k] = math.Floor(phs[k]/step[stepsize])*step[stepsize] + step[stepsize]/2
+		j = i + 1
+		i += SAMPLE_PER_FRAME
+		// fmt.Println(i)
+		if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
+			i = len(l) - 1
 		}
-		// fmt.Println(phs[k])
-		count++
-		if count == BIT_REPEAT {
-			count = 0
-			pos++
-		}
-		k++
 	}
-	fmt.Println(phs[103], " ", phs[104], " ", phs[105], " ", phs[107])
-	cmplxArray := make([]complex128, reader.Samples)
+
+	return mag, phs
+}
+
+func Reconstruct(mag []float64, phs []float64) []float64 {
+	cmplxArray := make([]complex128, len(mag))
 	for i, _ := range mag {
 		cmplxArray[i] = cmplx.Rect(mag[i], phs[i])
 	}
 
-	//----------------------ifft the whole file-------------------
-	var wm_frame = fft.IFFT(cmplxArray)
-	for i := 0; i < 10; i++ {
-		fmt.Print(real(wm_frame[i]), " ")
+	var i = SAMPLE_PER_FRAME - 1
+	var j = 0
+	var newWav = make([]float64, 0)
+	for i < len(mag) {
+		var subcmplx = cmplxArray[j : i+1]
+		subIFFT := fft.IFFTRealOutput(subcmplx)
+		newWav = append(newWav, subIFFT...)
+		j = i + 1
+		i += SAMPLE_PER_FRAME
+		if len(mag)-i >= 0 && len(mag)-i < SAMPLE_PER_FRAME {
+			i = len(mag) - 1
+		}
 	}
 
-	var newWav = make([]float64, reader.Samples)
-	for i, _ := range wm_frame {
-		newWav[i] = real(wm_frame[i])
-	}
-	//----------------------ifft the whole file-------------------
+	// newWav = append(newWav, original...)
+	return newWav
+}
 
-	//==================================================================
-
-	//----------------------divide into frames----------------------
-	// i = SAMPLE_PER_FRAME-1
-	// j=0
-	// var newWav = make([]float64, 0)
-	// for i<len(l) {
-	//   var subcmplx = cmplxArray[j:i+1]
-	//   subIFFT :=  fft.IFFTRealOutput(subcmplx)
-	//   // fmt.Println(len(newWav))
-	//   newWav = append(newWav, subIFFT...)
-	//   j=i+1
-	//   i+=SAMPLE_PER_FRAME
-	//   if len(l)-i>=0&&len(l)-i<SAMPLE_PER_FRAME{
-	//     i=len(l)-1
-	//   }
-	// }
-	//----------------------divide into frames----------------------
-
-	wavOut, err := os.Create("test_wm.wav")
-	checkErr(err)
+func Write(newWav []float64, outputfile string) {
+	wavOut, _ := os.Create(outputfile)
 	defer wavOut.Close()
 
 	meta := wavwriter.File{
 		Channels:        1,
-		SampleRate:      reader.Header.SampleRate,
-		SignificantBits: reader.Header.BitsPerSample,
+		SampleRate:      config.Header.SampleRate,
+		SignificantBits: config.Header.BitsPerSample,
 	}
 
-	writer, err := meta.NewWriter(wavOut)
-	checkErr(err)
+	writer, _ := meta.NewWriter(wavOut)
 	defer writer.Close()
 
-	for n := 0; n < reader.Samples; n += 1 {
-		// integer := int16(newWav[n]*math.MaxInt16)
-		integer := int16(newWav[n]*(math.MaxInt16-math.MinInt16) + math.MinInt16)
-		err = writer.WriteInt16(integer)
-		checkErr(err)
+	for n := 0; n < len(newWav); n += 1 {
+		integer := int16(newWav[n] * math.MaxInt16)
+		writer.WriteInt16(integer)
+	}
+}
+
+func QIMEncode(mag float64, phs float64, bit int) float64 {
+	step := [5]float64{PI / float64(8+config.STEP_SIZE), PI / float64(6+config.STEP_SIZE), PI / float64(4+config.STEP_SIZE), PI / float64(2+config.STEP_SIZE), PI / (config.STEP_SIZE)}
+	var stepsize = findStep(mag)
+	if bit == 48 {
+		return math.Floor(phs/step[stepsize]+0.5) * step[stepsize]
+	} else {
+		return math.Floor(phs/step[stepsize])*step[stepsize] + step[stepsize]/2
 	}
 }
 
@@ -183,10 +209,4 @@ func findStep(mag float64) int32 {
 		group = 4
 	}
 	return int32(group)
-}
-
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
 }

@@ -78,7 +78,6 @@ MarkStream.factory('decode', function($q) {
             var countone = 0;
             var countzero = 0;
             var str = "";
-//            console.log(str.length);
             for (var i = 0; i < 800; i++) {
                 if (mag[i] < 0.0001){
                     continue;
@@ -90,19 +89,10 @@ MarkStream.factory('decode', function($q) {
                     countzero++;
                 }
                 if (countzero+countone == 5 ){
-//                    console.log(countone + " " + countzero);
                     if (countzero > countone ){
-//                        if(str.length == 8 && Bit2Char(str) == '0'){
-//                            console.log("1111111111111");
-//                            deferred.reject('no wm');
-//                            return deferred.promise;
-//                        }
                         str += "0";
                     } else {
-//                        console.log(str.length);
-//                        if(str.length > 0){
                         str += "1";   
-//                        }
                     }
                     countzero = 0
                     countone = 0
@@ -117,21 +107,11 @@ MarkStream.factory('decode', function($q) {
                 }
             }
             str = Bit2Char(str);
-//            console.log(str.length);
-//            console.log(str);
-//            if (str.length == 0 || str[0] == '0'){
-//                deferred.reject("no wm");
-//            }
-//            else{
-//                console.log(str);
-//                str = str.substr(1,str.length-1);
-//                console.log(str);
             var tmp = str.lastIndexOf('\n');
             if(tmp == -1)
                 deferred.resolve(str);
             else
                 deferred.resolve(str.substr(0,tmp+1));
-//            }
             return deferred.promise;
         }
 	}

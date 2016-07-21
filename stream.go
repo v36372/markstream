@@ -15,21 +15,33 @@ import (
 type Client struct {
 	uuid string
 	conn *websocket.Conn
+	exit chan bool
 }
 
 type frame []int16
 
 type Manager struct {
-	clients map[string]*Client
-	mutex   sync.Mutex
-	audioDataChan  chan frame
+	clients       map[string]*Client
+	mutex         sync.Mutex
+	audioDataChan chan frame
 }
 
 func NewManager() *Manager {
 	m := new(Manager)
 	m.clients = make(map[string]*Client)
-	// m.embedd = make(chan string)
 	return m
+}
+
+func (m *Manager) StreamToClients() {
+	for audioData := range m.audioDataChan {
+		for _, cl := range m.clients {
+			err := websocket.Message.Send(cl.conn, Int16ArrayByte(audioData))
+			if err != nil {
+				cl.exit <- true
+				m.DeleteClient(cl.uuid)
+			}
+		}
+	}
 }
 
 func (m *Manager) AddClient(c *Client) {
