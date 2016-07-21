@@ -4,6 +4,7 @@ import (
 	"github.com/v36372/markstream"
 	"golang.org/x/net/websocket"
 	"net/http"
+	"os"
 )
 
 type page struct {
