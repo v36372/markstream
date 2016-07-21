@@ -44,9 +44,7 @@ func (ms *MarkStream) StreamServer(ws *websocket.Conn) {
 	<-cl.exit
 }
 
-func (ms *MarkStream) Process() {
-	var filename = "RWC_60s/RWC_002.wav"
-
+func (ms *MarkStream) Process(fileName) {
 	var l []float64
 	l = ms.Read(filename)
 

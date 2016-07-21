@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/v36372/markstream"
 	"golang.org/x/net/websocket"
-	"$GOPATH/src/markstream"
 	"net/http"
 )
 
@@ -12,7 +12,9 @@ type page struct {
 
 func main() {
 	ms := markstream.NewMarkStream()
-	go ms.Process()
+	fileName := string(os.Args[1])
+
+	go ms.Process(fileName)
 	go ms.Input()
 	go ms.ConnManager.StreamToClients()
 
