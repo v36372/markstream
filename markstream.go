@@ -44,9 +44,9 @@ func (ms *MarkStream) StreamServer(ws *websocket.Conn) {
 	<-cl.exit
 }
 
-func (ms *MarkStream) Process(fileName) {
+func (ms *MarkStream) Process(fileName string) {
 	var l []float64
-	l = ms.Read(filename)
+	l = ms.Read(fileName)
 
 	ms.Embedding(l)
 }
