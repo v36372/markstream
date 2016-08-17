@@ -2,7 +2,6 @@ package markstream
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
 	"math"
@@ -82,7 +81,6 @@ func (ms *MarkStream) Embedding(l []float64) {
 	for i < len(l) {
 		select {
 		case watermark := <-ms.userInputChan:
-			fmt.Println(watermark)
 			var pos = 0
 			submag := make([]float64, i+1-j)
 			subphs := make([]float64, i+1-j)
@@ -149,21 +147,23 @@ func (ms *MarkStream) Embedding(l []float64) {
 						pos++
 					}
 				}
-
+				cmplxArray := make([]complex128, len(subl))
+				for i, _ := range cmplxArray {
+					cmplxArray[i] = cmplx.Rect(submag[i], subphs[i])
+				}
+				newWav := fft.IFFTRealOutput(cmplxArray)
+				Wav16bit := Scale(newWav)
+				ms.ConnManager.audioDataChan <- Wav16bit
+				j = i + 1
+				i += SAMPLE_PER_FRAME
+				if i >= len(l) {
+					break
+				}
+				if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
+					i = len(l) - 1
+				}
+				time.Sleep(400 * time.Millisecond)
 			}
-			cmplxArray := make([]complex128, len(subl))
-			for i, _ := range cmplxArray {
-				cmplxArray[i] = cmplx.Rect(submag[i], subphs[i])
-			}
-			newWav := fft.IFFTRealOutput(cmplxArray)
-			Wav16bit := Scale(newWav)
-			ms.ConnManager.audioDataChan <- Wav16bit
-			j = i + 1
-			i += SAMPLE_PER_FRAME
-			if len(l)-i > 0 && len(l)-i < SAMPLE_PER_FRAME {
-				i = len(l) - 1
-			}
-			time.Sleep(400 * time.Millisecond)
 		}
 	}
 }
