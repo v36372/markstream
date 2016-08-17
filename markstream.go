@@ -1,12 +1,9 @@
 package markstream
 
 import (
-	"bufio"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/websocket"
-	"log"
 	"math"
-	"os"
 	"time"
 )
 
@@ -21,11 +18,13 @@ const (
 type MarkStream struct {
 	userInputChan chan string
 	ConnManager   *Manager
+	advertisement chan bool
 }
 
 func NewMarkStream() *MarkStream {
 	ms := new(MarkStream)
 	ms.userInputChan = make(chan string)
+	ms.advertisement = make(chan bool)
 	ms.ConnManager = new(Manager)
 	ms.ConnManager.clients = make(map[string]*Client)
 	ms.ConnManager.audioDataChan = make(chan frame)
@@ -44,20 +43,22 @@ func (ms *MarkStream) StreamServer(ws *websocket.Conn) {
 	<-cl.exit
 }
 
-func (ms *MarkStream) Process(fileName string) {
-	var l []float64
-	l = ms.Read(fileName)
-
-	ms.Embedding(l)
+func (ms *MarkStream) Process(fileName string, adsFileName string) {
+	var audioData []float64
+	var adsFile []float64
+	audioData = ms.Read(fileName)
+	adsFile = ms.Read(adsFileName)
+	for {
+		ms.Embedding(audioData)
+		ms.advertisement <- true
+		ms.Embedding(adsFile)
+	}
 }
 
-func (ms *MarkStream) Input() {
-	reader := bufio.NewReader(os.Stdin)
+func (ms *MarkStream) Input(adString string) {
 	for {
-		log.Printf("Input your embedding string: ")
-		text, _ := reader.ReadString('\n')
-		ms.userInputChan <- text
-		log.Println("Embedding...")
-		time.Sleep(5 * time.Second)
+		<-ms.advertisement
+		time.Sleep(2 * time.Second)
+		ms.userInputChan <- adString
 	}
 }
