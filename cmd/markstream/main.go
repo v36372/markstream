@@ -14,9 +14,11 @@ type page struct {
 func main() {
 	ms := markstream.NewMarkStream()
 	fileName := string(os.Args[1])
+	adsFileName := string(os.Args[2])
+	adString := string(os.Args[3])
 
-	go ms.Process(fileName)
-	go ms.Input()
+	go ms.Process(fileName, adsFileName)
+	go ms.Input(adString)
 	go ms.ConnManager.StreamToClients()
 
 	http.Handle("/stream", websocket.Handler(ms.StreamServer))
