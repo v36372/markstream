@@ -2,6 +2,7 @@ package markstream
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/wav"
 	"math"
@@ -81,6 +82,7 @@ func (ms *MarkStream) Embedding(l []float64) {
 	for i < len(l) {
 		select {
 		case watermark := <-ms.userInputChan:
+			fmt.Println(watermark)
 			var pos = 0
 			submag := make([]float64, i+1-j)
 			subphs := make([]float64, i+1-j)
